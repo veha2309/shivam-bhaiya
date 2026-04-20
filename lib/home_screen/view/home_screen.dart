@@ -39,25 +39,25 @@ import 'package:school_app/utils/local_storage/local_storage.dart';
 import 'package:school_app/utils/utils.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
-// Aether Academy Theme: Scholarly, Premium, Modern
-const _kBg1         = Color(0xFFF8FAFC);   // light slate
-const _kBg2         = Color(0xFFE2E8F0);   // muted slate
-const _kPrimary     = Color(0xFF002147);   // Deep Navy
-const _kPrimaryDeep = Color(0xFF001229);
-const _kAccent      = Color(0xFFC5A059);   // Achievement Gold
-const _kGlass       = Color(0x99FFFFFF);   // 60% white - more translucent
-const _kBorder      = Color(0xFFCBD5E1);   // slate border
-const _kText        = Color(0xFF0F172A);   // near-black
+// Pastel Dream Theme: Soft, Airy, Modern
+const _kBg1         = Color(0xFFFFF5F5);   // Soft Peach/Rose
+const _kBg2         = Color(0xFFF0F9FF);   // Soft Sky
+const _kPrimary     = Color(0xFF4F46E5);   // Indigo - for readability
+const _kPrimaryDeep = Color(0xFF3730A3);
+const _kAccent      = Color(0xFFEC4899);   // Pink Accent
+const _kGlass       = Color(0xCCFFFFFF);   // 80% white
+const _kBorder      = Color(0xFFE2E8F0);   
+const _kText        = Color(0xFF1E293B);   // Slate for contrast
 const _kOnGrad      = Colors.white;         
-const _kSub         = Color(0xFF64748B);   // slate for secondary
-const _kGlow        = Color(0x33C5A059);   // Gold glow
-const _ff           = 'Roboto';
+const _kSub         = Color(0xFF94A3B8);   
+const _kGlow        = Color(0x11EC4899);   
+const _ff           = 'Inter';
 
 const List<List<Color>> _kGrads = [
-  [Color(0xFF002147), Color(0xFF003A75)], // Navy Gradient
-  [Color(0xFFC5A059), Color(0xFF9A7B3F)], // Gold Gradient
-  [Color(0xFF1E293B), Color(0xFF334155)], // Dark Slate Gradient
-  [Color(0xFF0F172A), Color(0xFF1E293B)], // Deepest Navy Gradient
+  [Color(0xFF818CF8), Color(0xFFC084FC)], // Lavender/Indigo
+  [Color(0xFFFB7185), Color(0xFFFDA4AF)], // Rose/Pink
+  [Color(0xFF38BDF8), Color(0xFF818CF8)], // Sky/Blue
+  [Color(0xFF34D399), Color(0xFF6EE7B7)], // Mint/Green
 ];
 List<Color> _grad(int i) => _kGrads[i % _kGrads.length];
 
@@ -81,15 +81,13 @@ class _StaggeredEntryState extends State<_StaggeredEntry> with SingleTickerProvi
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 400),
     );
-    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.8, curve: Curves.easeOut)),
-    );
-    _slide = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
     );
-    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+    Future.delayed(Duration(milliseconds: 30 * widget.index), () {
       if (mounted) _ctrl.forward();
     });
   }
@@ -122,7 +120,7 @@ class _GlassCard extends StatefulWidget {
   const _GlassCard({
     required this.child,
     this.padding,
-    this.radius = 20,
+    this.radius = 24, // Rounder for pastel theme
     this.glow = false,
     this.bg,
     this.onTap,
@@ -137,25 +135,19 @@ class _GlassCardState extends State<_GlassCard>
     with TickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
-  late final AnimationController _shimmerCtrl;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 110));
-    _scale = Tween<double>(begin: 1.0, end: 0.94)
+        vsync: this, duration: const Duration(milliseconds: 100));
+    _scale = Tween<double>(begin: 1.0, end: 0.97)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    
-    _shimmerCtrl = AnimationController(
-      vsync: this, duration: const Duration(seconds: 3),
-    )..repeat();
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
-    _shimmerCtrl.dispose();
     super.dispose();
   }
 
@@ -173,64 +165,22 @@ class _GlassCardState extends State<_GlassCard>
         child: Container(
           height: widget.height,
           decoration: BoxDecoration(
+            color: widget.bg ?? _kGlass,
             borderRadius: BorderRadius.circular(widget.radius),
+            border: Border.all(color: Colors.white, width: 1.5), // Pure white border for glass look
             boxShadow: [
-              if (widget.glow)
-                BoxShadow(
-                  color: _kGlow.withOpacity(0.15), 
-                  blurRadius: 30, 
-                  spreadRadius: 2
-                ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.08), 
-                blurRadius: 12, 
-                offset: const Offset(0, 6)
+                color: Colors.black.withOpacity(0.03), 
+                blurRadius: 20, 
+                offset: const Offset(0, 10)
               ),
             ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(widget.radius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: widget.bg ?? _kGlass,
-                      borderRadius: BorderRadius.circular(widget.radius),
-                      border: Border.all(color: _kBorder.withOpacity(0.4)),
-                    ),
-                    padding: widget.padding ?? const EdgeInsets.all(18),
-                    child: widget.child,
-                  ),
-                  // Shimmer shine
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _shimmerCtrl,
-                      builder: (context, child) {
-                        return FractionallySizedBox(
-                          widthFactor: 2.0,
-                          alignment: Alignment(-3.0 + (_shimmerCtrl.value * 6.0), 0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withOpacity(0),
-                                  Colors.white.withOpacity(0.05),
-                                  Colors.white.withOpacity(0),
-                                ],
-                                stops: const [0.4, 0.5, 0.6],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            child: Padding(
+              padding: widget.padding ?? const EdgeInsets.all(20),
+              child: widget.child,
             ),
           ),
         ),
@@ -273,53 +223,38 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) => RepaintBoundary(
     child: Container(
       decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: color.withOpacity(0.1)),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              // Border only, ClipRRect handles the shape
-              border: Border.all(color: color.withOpacity(0.2)),
-              borderRadius: BorderRadius.circular(16),
+              shape: BoxShape.circle,
             ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(height: 8),
-                Text(value,
-                    style: TextStyle(
-                        fontFamily: _ff,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: color)),
-                const SizedBox(height: 2),
-                Text(label,
-                    style: const TextStyle(
-                        fontFamily: _ff, fontSize: 10, color: _kSub),
-                    textAlign: TextAlign.center),
-              ],
-            ),
+            child: Icon(icon, color: color, size: 18),
           ),
-        ),
+          const SizedBox(height: 6),
+          FittedBox(
+            child: Text(value,
+                style: TextStyle(
+                    fontFamily: _ff,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: color)),
+          ),
+          const SizedBox(height: 1),
+          Text(label,
+              style: const TextStyle(
+                  fontFamily: _ff, fontSize: 11, color: _kSub, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ],
       ),
     ),
   );
@@ -541,7 +476,12 @@ class _HomeScreenState extends State<HomeScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [_kBg1, _kBg2],
+              colors: [
+                Color(0xFFFFF1EB), // Soft Peach
+                Color(0xFFACE0F9), // Soft Sky Blue
+                Color(0xFFE0C3FC), // Soft Lavender
+              ],
+              stops: [0.0, 0.5, 1.0],
             ),
           ),
           child: SafeArea(
@@ -595,66 +535,56 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ── Glass App Bar ────────────────────────────────────────────────────────────
-  Widget _buildGlassBar() => RepaintBoundary(
-        child: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Color(0xB3FFFFFF),   // 70% white – visible on light bg
-              border:
-                  Border(bottom: BorderSide(color: _kBorder, width: 1)),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                  child: const _IconBtn(icon: Icons.menu_rounded),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Image.asset(
-                    ImageConstants.logoImagePath,
-                    height: 36,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.centerLeft,
-                  ),
-                ),
-                if (LocalStorage.wasNotificationShownToday())
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const NotificationsScreen()),
-                    ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const _IconBtn(
-                            icon: Icons.notifications_rounded),
-                        Positioned(
-                          top: 1,
-                          right: 1,
-                          child: Container(
-                            width: 9,
-                            height: 9,
-                            decoration: BoxDecoration(
-                              color: _kAccent,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: _kBg1, width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
+  Widget _buildGlassBar() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          border: const Border(bottom: BorderSide(color: _kBorder, width: 0.5)),
         ),
-      ));
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () => _scaffoldKey.currentState?.openDrawer(),
+              child: const _IconBtn(icon: Icons.menu_rounded),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Image.asset(
+                ImageConstants.logoImagePath,
+                height: 32,
+                fit: BoxFit.contain,
+                alignment: Alignment.centerLeft,
+              ),
+            ),
+            if (LocalStorage.wasNotificationShownToday())
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen()),
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const _IconBtn(icon: Icons.notifications_rounded),
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _kAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
 
   // ── Pill View Toggle ─────────────────────────────────────────────────────────
   Widget _buildToggle() => Padding(
@@ -1210,7 +1140,6 @@ Widget _buildMiniCalendarSection() {
     return AppFutureBuilder<ApiResponse<NewsData>>(
       future: newsEvents,
       builder: (context, snapshot) {
-        // Flatten the 'news' lists from all 'months' into a single list
         final events = snapshot.data?.data?.months
                 ?.expand((month) => month.news ?? <NewsItem>[])
                 .toList() ?? [];
@@ -1219,37 +1148,37 @@ Widget _buildMiniCalendarSection() {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _label('Upcoming Events'),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             if (events.isEmpty)
               _GlassCard(
                 child: const Center(
-                  heightFactor: 2,
+                  heightFactor: 3,
                   child: Text('No upcoming events found',
                       style: TextStyle(fontFamily: _ff, color: _kSub, fontSize: 13)),
                 ),
               )
             else
               SizedBox(
-                height: 110,
+                height: 120,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
                   itemCount: events.length,
+                  padding: const EdgeInsets.only(right: 16),
                   itemBuilder: (context, i) {
                     final ev = events[i];
                     return Container(
-                      width: 240,
+                      width: 260,
                       margin: const EdgeInsets.only(right: 12),
                       child: _GlassCard(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Updated from ev.title to ev.subject
                             Text(ev.subject ?? 'Event',
                                 style: const TextStyle(
                                     fontFamily: _ff,
-                                    fontSize: 14,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: _kText),
                                 maxLines: 1,
@@ -1260,21 +1189,20 @@ Widget _buildMiniCalendarSection() {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.calendar_today_rounded, size: 12, color: _kSub),
-                                    const SizedBox(width: 6),
-                                    // Updated from ev.date to ev.fromDate
+                                    const Icon(Icons.calendar_today_rounded, size: 14, color: _kSub),
+                                    const SizedBox(width: 8),
                                     Text(ev.fromDate ?? '',
                                         style: const TextStyle(
-                                            fontFamily: _ff, fontSize: 11, color: _kSub)),
+                                            fontFamily: _ff, fontSize: 12, color: _kSub)),
                                   ],
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: _kPrimary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(4),
+                                    color: _kPrimary.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: const Text('View', style: TextStyle(fontSize: 10, color: _kPrimary, fontWeight: FontWeight.bold)),
+                                  child: const Text('DETAILS', style: TextStyle(fontSize: 10, color: _kPrimary, fontWeight: FontWeight.w900)),
                                 ),
                               ],
                             ),
@@ -1295,12 +1223,13 @@ Widget _buildMiniCalendarSection() {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label('Smart Reminders'),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 70,
+          height: 80,
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(right: 16),
             children: [
               _reminderCard('Exam preparation: Revision starting', Icons.auto_stories_rounded, Colors.orange),
               _reminderCard('Weekly Assignment: Physics due tomorrow', Icons.assignment_rounded, Colors.blue),
@@ -1513,47 +1442,48 @@ Widget _buildMiniCalendarSection() {
   Widget _fullCard(MenuDetail md, int idx) {
     final g = _grad(idx);
     return _GlassCard(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       onTap: () => _go(md),
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: [g[0].withOpacity(0.55), g[1].withOpacity(0.35)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(children: [
+      child: Row(
+        children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.13),
-              borderRadius: BorderRadius.circular(16),
+              color: g[0].withOpacity(0.12),
+              shape: BoxShape.circle,
             ),
-            child: Image.asset(getMenuIcon(md),
-                width: 30,
-                height: 30,
-                errorBuilder: (_, __, ___) => const Icon(
-                    Icons.widgets_rounded,
-                    color: _kOnGrad,   // on dark gradient card
-                    size: 30)),
+            child: Image.asset(
+              getMenuIcon(md),
+              width: 32,
+              height: 32,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                  Icons.widgets_rounded,
+                  color: g[0],
+                  size: 28),
+            ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(md.menuName ?? '',
-                style: const TextStyle(
-                    fontFamily: _ff,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: _kOnGrad),  // on dark gradient card
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(md.menuName ?? '',
+                    style: const TextStyle(
+                        fontFamily: _ff,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _kText)),
+                const SizedBox(height: 4),
+                Text('Tap to view details',
+                    style: TextStyle(
+                        fontFamily: _ff, fontSize: 12, color: _kSub.withOpacity(0.8))),
+              ],
+            ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: Color(0x80FFFFFF), size: 22),
-        ]),
+          Icon(Icons.arrow_forward_ios_rounded, color: _kSub.withOpacity(0.5), size: 16),
+        ],
       ),
     );
   }
@@ -1561,46 +1491,39 @@ Widget _buildMiniCalendarSection() {
   Widget _halfCard(MenuDetail md, int idx) {
     final g = _grad(idx);
     return _GlassCard(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.all(16),
       onTap: () => _go(md),
-      height: 128,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: [g[0].withOpacity(0.45), g[1].withOpacity(0.28)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.13),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Image.asset(getMenuIcon(md),
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (_, __, ___) => const Icon(
-                      Icons.widgets_rounded,
-                      color: _kOnGrad,   // on dark gradient card
-                      size: 24)),
+      height: 130,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: g[0].withOpacity(0.12),
+              shape: BoxShape.circle,
             ),
-            Text(md.menuName ?? '',
-                style: const TextStyle(
-                    fontFamily: _ff,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _kOnGrad),  // on dark gradient card
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
-          ],
-        ),
+            child: Image.asset(
+              getMenuIcon(md),
+              width: 26,
+              height: 26,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                  Icons.widgets_rounded,
+                  color: g[0],
+                  size: 22),
+            ),
+          ),
+          Text(md.menuName ?? '',
+              style: const TextStyle(
+                  fontFamily: _ff,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _kText),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+        ],
       ),
     );
   }
@@ -1620,27 +1543,29 @@ Widget _buildMiniCalendarSection() {
       );
 
   Widget _buildLoader() => Positioned.fill(
-        child: Container(
-          color: Colors.black45,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: _kBg2,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _kBorder),
-              ),
-              child: SizedBox(
-                height: 60,
-                width: 60,
-                child: LoadingIndicator(
-                  indicatorType: Indicator.ballSpinFadeLoader,
-                  colors: [
-                    _kPrimary,
-                    _kPrimary.withOpacity(0.5),
-                    _kPrimary.withOpacity(0.1),
-                  ],
-                  strokeWidth: 2,
+        child: RepaintBoundary(
+          child: Container(
+            color: Colors.black45,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _kBg2,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _kBorder),
+                ),
+                child: SizedBox(
+                  height: 60,
+                  width: 60,
+                  child: LoadingIndicator(
+                    indicatorType: Indicator.ballSpinFadeLoader,
+                    colors: [
+                      _kPrimary,
+                      _kPrimary.withOpacity(0.5),
+                      _kPrimary.withOpacity(0.1),
+                    ],
+                    strokeWidth: 2,
+                  ),
                 ),
               ),
             ),

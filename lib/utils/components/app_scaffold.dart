@@ -98,8 +98,8 @@ class _AppScaffoldState extends State<AppScaffold> {
 }
 
 Widget getScreenLoaderWidget() {
-  return RepaintBoundary(
-    child: Positioned(
+  return Positioned.fill(
+    child: RepaintBoundary(
       child: Center(
         child: Container(
           decoration: BoxDecoration(
