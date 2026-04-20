@@ -107,7 +107,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               text: "Mother's Phone No.",
               padding: const EdgeInsets.only(left: 10.0)),
           TableCellConfiguration(
-              text: studentProfile?.mobileNo ?? '',
+              text: studentProfile?.mmobileno ?? '',
               padding: const EdgeInsets.only(left: 10.0))
         ]),
         TableRowConfiguration(cells: [
