@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "492199291852",
+    "project_id": "vivekanand-school-b13d4",
+    "storage_bucket": "vivekanand-school-b13d4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:492199291852:android:6614c2badeee122d590b69",
+        "android_client_info": {
+          "package_name": "com.vivekanand.mobileapp55566"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCT_sA096LL1tJZ7I-CPdEmop6S93yn114"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,1 @@
+/Users/warmac/Documents/GitHub/school_app/build/app/intermediates/cxx/Debug/34241i5d/obj/arm64-v8a

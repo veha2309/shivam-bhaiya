@@ -1,0 +1,1 @@
+/Users/warmac/Documents/GitHub/school_app/build/app/intermediates/cxx/RelWithDebInfo/3rf14676/obj/arm64-v8a

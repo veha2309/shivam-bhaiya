@@ -1,0 +1,119 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+plugins {
+    id "com.android.application"
+    // START: FlutterFire Configuration
+    id 'com.google.gms.google-services'
+    // END: FlutterFire Configuration
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+} else {
+    println("⚠️ key.properties file not found at: ${keystorePropertiesFile.absolutePath}")
+}
+
+android {
+    namespace = "com.vivekanand.mobileapp55566"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = "27.2.12479018"
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        applicationId = "com.vivekanand.mobileapp55566"
+        minSdkVersion = 23
+        targetSdk = flutter.targetSdkVersion
+        versionCode = 31
+        versionName = "1.1.6"
+        multiDexEnabled true
+        
+        // 16KB page size support configuration
+        ndk {
+            // abiFilters - specify ABIs if needed, or leave empty for all
+            // Example: abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            def keyAliasValue = keystoreProperties["keyAlias"]
+            def keyPasswordValue = keystoreProperties["keyPassword"]
+            def storeFileValue = keystoreProperties["storeFile"]
+            def storePasswordValue = keystoreProperties["storePassword"]
+
+            if (keyAliasValue && keyPasswordValue && storeFileValue && storePasswordValue) {
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
+                storeFile = file(storeFileValue)
+                storePassword = storePasswordValue
+            } else {
+                println("❌ Missing signing config values in key.properties. Please verify.")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            crunchPngs false 
+            signingConfig = signingConfigs.findByName("release")
+            // Optional: Add more safety by disabling signing if config is incomplete
+            if (!signingConfig?.storeFile) {
+                println("⚠️ Release signing disabled due to missing keystore info.")
+                signingConfig = null
+            }
+            // Optional build optimizations
+            shrinkResources false
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig = signingConfigs.findByName("debug")
+        }
+    }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude 'META-INF/*.kotlin_module'
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.2'
+
+    implementation('androidx.multidex:multidex:2.0.1') {
+        exclude group: 'org.bouncycastle', module: 'bcprov-jdk15on'
+        exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
+    }
+    
+    // Required for FileProvider and camera file handling
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+}
