@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
 import 'package:school_app/utils/components/body.dart';
 import 'package:school_app/services/download_service.dart';
+import 'package:url_launcher/url_launcher.dart'; // Ensure this is imported
 
 class FeePaymentScreen extends StatefulWidget {
   final String? title;
@@ -19,16 +20,16 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
   InAppWebViewController? _webViewController;
   bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-  }
-
   Uri buildFeePaymentUri(String baseUrl, Map<String, String> params) {
     final uri = Uri.parse(baseUrl);
-    final newParams = Map<String, String>.from(uri.queryParameters)
-      ..addAll(params);
+    final newParams = Map<String, String>.from(uri.queryParameters)..addAll(params);
     return uri.replace(queryParameters: newParams);
+  }
+
+  // Helper to identify standard web protocols
+  bool _isWebScheme(String? scheme) {
+    if (scheme == null) return false;
+    return ['http', 'https', 'about', 'data', 'javascript'].contains(scheme.toLowerCase());
   }
 
   @override
@@ -57,11 +58,18 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                 useOnDownloadStart: true,
                 useOnLoadResource: true,
                 useShouldOverrideUrlLoading: true,
+                // CRITICAL: Prevents the white error screen from replacing your Razorpay UI
+                disableDefaultErrorPage: true,
               ),
               onWebViewCreated: (controller) {
                 _webViewController = controller;
               },
               onLoadStart: (controller, url) {
+                // If the engine tries to load a non-web scheme, kill it instantly
+                if (!_isWebScheme(url?.scheme)) {
+                  controller.stopLoading();
+                  return;
+                }
                 setState(() {
                   _isLoading = true;
                 });
@@ -72,33 +80,55 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                 });
               },
               shouldOverrideUrlLoading: (controller, navigationAction) async {
-                final url = navigationAction.request.url.toString();
+                final uri = navigationAction.request.url;
+                if (uri == null) return NavigationActionPolicy.ALLOW;
 
-                // Check if URL is downloadable
-                if (DownloadService.isDownloadableUrl(url)) {
-                  // Handle download
-                  await DownloadService.downloadFile(
-                    url: url,
-                    context: context,
-                  );
-                  // Prevent navigation to download URL
+                final urlString = uri.toString();
+                final scheme = uri.scheme.toLowerCase();
+
+                // 1. Intercept Payment Schemes (UPI, GPay, PhonePe, Intents)
+                if (!['http', 'https'].contains(scheme)) {
+                  // Fire-and-forget to avoid the async race condition
+                  launchUrl(uri, mode: LaunchMode.externalApplication).then((launched) {
+                    if (!launched && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("No payment app found for this method."),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  });
                   return NavigationActionPolicy.CANCEL;
                 }
 
-                // Allow normal navigation
+                // 2. Existing Download Logic
+                if (DownloadService.isDownloadableUrl(urlString)) {
+                  await DownloadService.downloadFile(url: urlString, context: context);
+                  return NavigationActionPolicy.CANCEL;
+                }
+
                 return NavigationActionPolicy.ALLOW;
               },
+              onReceivedError: (controller, request, error) async {
+                // If Chromium still shows the error screen, force the UI back to Razorpay
+                if (error.description == "net::ERR_UNKNOWN_URL_SCHEME" || error.type == -10) {
+                  if (await controller.canGoBack()) {
+                    await controller.goBack();
+                  }
+                  setState(() { _isLoading = false; });
+                  return;
+                }
+
+                setState(() {
+                  _isLoading = false;
+                });
+              },
               onDownloadStartRequest: (controller, url) async {
-                // Handle download requests
                 await DownloadService.downloadFile(
                   url: url.url.toString(),
                   context: context,
                 );
-              },
-              onReceivedError: (controller, request, error) {
-                setState(() {
-                  _isLoading = false;
-                });
               },
             ),
             if (_isLoading) Center(child: getLoaderWidget()),

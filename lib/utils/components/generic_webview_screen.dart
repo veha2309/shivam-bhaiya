@@ -62,13 +62,6 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
     return uri.replace(queryParameters: newParams);
   }
 
-  // Helper function to check if a scheme is a standard web scheme
-  bool _isStandardWebScheme(String? scheme) {
-    if (scheme == null) return true;
-    final s = scheme.toLowerCase();
-    return ['http', 'https', 'file', 'chrome', 'data', 'javascript', 'about'].contains(s);
-  }
-
   @override
   Widget build(BuildContext context) {
     User? user = AuthViewModel.instance.getLoggedInUser();
@@ -109,79 +102,101 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
                 databaseEnabled: true,
                 cacheEnabled: true,
                 useHybridComposition: true,
+
+                // ---------------------------------------------------------
+                // CRITICAL FIX: Stops Android from replacing Razorpay with
+                // the "net::ERR_UNKNOWN_URL_SCHEME" error screen natively.
+                // ---------------------------------------------------------
+                disableDefaultErrorPage: true,
               ),
               onLoadStart: (controller, url) async {
-                // SAFEGUARD 1: If it's not a standard web link, stop the engine immediately
-                if (!_isStandardWebScheme(url?.scheme)) {
-                  controller.stopLoading();
-                  return;
-                }
-
                 setState(() {
                   _isLoading = true;
                 });
               },
               shouldOverrideUrlLoading: (controller, navigationAction) async {
-                final uri = navigationAction.request.url;
-                if (uri == null) return NavigationActionPolicy.ALLOW;
+                final uriRequest = navigationAction.request.url;
+                if (uriRequest == null) return NavigationActionPolicy.ALLOW;
 
-                // 1. Handle normal web navigation
-                if (_isStandardWebScheme(uri.scheme)) {
-                  if (DownloadService.isDownloadableUrl(uri.toString())) {
-                    await DownloadService.downloadFile(
-                      url: uri.toString(),
-                      context: context,
-                    );
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  return NavigationActionPolicy.ALLOW;
+                final urlString = uriRequest.toString();
+                final scheme = uriRequest.scheme.toLowerCase();
+
+                // 1. Intercept all UPI and Intent schemes
+                if (['upi', 'gpay', 'phonepe', 'paytmmp', 'intent'].contains(scheme)) {
+
+                  // FIRE AND FORGET: Notice there is NO 'await' here.
+                  // This allows Flutter to immediately return CANCEL.
+                  launchUrl(
+                      uriRequest,
+                      mode: LaunchMode.externalApplication
+                  ).then((launched) {
+                    if (!launched && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Payment app not found on this device."),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }).catchError((e) {
+                    debugPrint("Error launching deep link: $e");
+                  });
+
+                  return NavigationActionPolicy.CANCEL;
                 }
 
-                // 2. Handle ALL custom schemes (upi://, gpay://, phonepe://, intent://, etc.)
-                controller.stopLoading(); // Tell webview to halt
-
-                try {
-                  bool launched = await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
+                // 2. Handle your existing downloads
+                if (DownloadService.isDownloadableUrl(urlString)) {
+                  await DownloadService.downloadFile(
+                    url: urlString,
+                    context: context,
                   );
-
-                  if (!launched && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("The selected payment app is not installed on this device."),
-                        backgroundColor: Colors.redAccent,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  debugPrint("Error launching deep link: $e");
+                  return NavigationActionPolicy.CANCEL;
                 }
 
-                return NavigationActionPolicy.CANCEL;
+                return NavigationActionPolicy.ALLOW;
               },
               onReceivedError: (controller, request, error) async {
-                setState(() {
-                  _isLoading = false;
-                });
-
-                // SAFEGUARD 2: The ultimate fallback.
-                // If Android ignored our cancel request and showed the error anyway,
-                // we instantly force the WebView to go back to the checkout page.
-                if (error.description == "net::ERR_UNKNOWN_URL_SCHEME") {
+                // THE FIX: If Chromium bypassed our Cancel request and showed the error,
+                // we instantly force the WebView to go back to the Razorpay UI.
+                if (error.description == "net::ERR_UNKNOWN_URL_SCHEME" || error.type == -10) {
                   debugPrint("Caught ERR_UNKNOWN_URL_SCHEME. Forcing UI back to Razorpay.");
                   if (await controller.canGoBack()) {
                     await controller.goBack();
                   }
+                  setState(() {
+                    _isLoading = false;
+                  });
+                  return;
                 }
+
+                // Handle standard errors
+                setState(() {
+                  _isLoading = false;
+                });
               },
               onLoadStop: (controller, url) async {
                 setState(() {
                   _isLoading = false;
                 });
 
-                // ... (Keep your existing JavaScript injection for the camera here) ...
+                // Keep your existing JS file input logic intact
+                final acceptValue = Platform.isIOS ? 'image/jpeg,image/png' : 'image/*';
+                final shouldSetCapture = Platform.isAndroid;
+                await controller.evaluateJavascript(source: """
+                  (function() {
+                    var fileInputs = document.querySelectorAll('input[type="file"]');
+                    fileInputs.forEach(function(input) {
+                      if (!input.hasAttribute('accept')) input.setAttribute('accept', '$acceptValue');
+                      if ($shouldSetCapture) {
+                        if (!input.hasAttribute('capture')) input.setAttribute('capture', 'environment');
+                      } else if (input.hasAttribute('capture')) {
+                        input.removeAttribute('capture');
+                      }
+                    });
+                  })();
+                """);
               },
               onDownloadStartRequest: (controller, url) async {
                 String uuid = getFileNameFromUrl(url.url);
@@ -192,7 +207,7 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
                 );
               },
             ),
-            if (_isLoading) Center(child: const CircularProgressIndicator()), // Assuming you have a loader
+            if (_isLoading) const Center(child: CircularProgressIndicator()), // Or your getLoaderWidget()
           ],
         ),
       ),
