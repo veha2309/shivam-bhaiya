@@ -8,7 +8,6 @@ import 'package:school_app/utils/components/app_scaffold.dart';
 import 'package:school_app/utils/components/body.dart';
 import 'package:school_app/services/download_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class GenericWebViewScreen extends StatefulWidget {
   final String? title;
@@ -30,17 +29,23 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    final permissions = await [
+    // Request camera and storage permissions for file upload with camera option.
+    // permission_handler v11 automatically maps Permission.photos to
+    // READ_MEDIA_IMAGES on Android 13+ and READ_EXTERNAL_STORAGE on older APIs.
+    // Permission.mediaLibrary does NOT exist on Android — remove it.
+    final List<Permission> permissionsToRequest = [
       Permission.camera,
       Permission.photos,
       Permission.storage,
-      if (await Permission.photos.isPermanentlyDenied == false)
-        Permission.mediaLibrary,
-    ].request();
+    ];
 
-    bool allGranted = await Permission.camera.isGranted &&
-        (await Permission.photos.isGranted ||
-            await Permission.mediaLibrary.isGranted);
+    await permissionsToRequest.request();
+
+    // Consider granted if camera + at least one storage permission is granted.
+    final cameraGranted = await Permission.camera.isGranted;
+    final storageGranted = await Permission.photos.isGranted ||
+        await Permission.storage.isGranted;
+    final allGranted = cameraGranted && storageGranted;
 
     setState(() {
       _permissionsGranted = allGranted;
@@ -49,7 +54,9 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
     if (!allGranted && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Camera and storage permissions are required for uploading images'),
+          content: Text(
+            'Camera and storage permissions are required for uploading images',
+          ),
           duration: Duration(seconds: 3),
         ),
       );
@@ -58,7 +65,8 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
 
   Uri buildWebViewUri(String baseUrl, Map<String, String> params) {
     final uri = Uri.parse(baseUrl);
-    final newParams = Map<String, String>.from(uri.queryParameters)..addAll(params);
+    final newParams = Map<String, String>.from(uri.queryParameters)
+      ..addAll(params);
     return uri.replace(queryParameters: newParams);
   }
 
@@ -94,86 +102,43 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
                 javaScriptCanOpenWindowsAutomatically: true,
                 allowContentAccess: true,
                 allowFileAccess: true,
+                // Enable media capture support
                 iframeAllow: "camera; microphone",
                 iframeAllowFullscreen: true,
+                // Additional settings for file input and camera
                 supportMultipleWindows: true,
                 mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                // Android-specific settings for camera/file upload
                 domStorageEnabled: true,
                 databaseEnabled: true,
                 cacheEnabled: true,
+                // Critical for file uploads
                 useHybridComposition: true,
-
-                // ---------------------------------------------------------
-                // CRITICAL FIX: Stops Android from replacing Razorpay with
-                // the "net::ERR_UNKNOWN_URL_SCHEME" error screen natively.
-                // ---------------------------------------------------------
-                disableDefaultErrorPage: true,
               ),
-              onLoadStart: (controller, url) async {
+              onWebViewCreated: (controller) {
+                // Enable console logging for debugging
+                controller.addJavaScriptHandler(
+                  handlerName: 'consoleLog',
+                  callback: (args) {
+                    print('WebView Console: $args');
+                  },
+                );
+              },
+              onConsoleMessage: (controller, consoleMessage) {
+                print(
+                  'WebView Console [${consoleMessage.messageLevel}]: ${consoleMessage.message}',
+                );
+              },
+              onPermissionRequest: (controller, request) async {
+                // Grant permission for camera and other media resources
+                return PermissionResponse(
+                  resources: request.resources,
+                  action: PermissionResponseAction.GRANT,
+                );
+              },
+              onLoadStart: (controller, url) {
                 setState(() {
                   _isLoading = true;
-                });
-              },
-              shouldOverrideUrlLoading: (controller, navigationAction) async {
-                final uriRequest = navigationAction.request.url;
-                if (uriRequest == null) return NavigationActionPolicy.ALLOW;
-
-                final urlString = uriRequest.toString();
-                final scheme = uriRequest.scheme.toLowerCase();
-
-                // 1. Intercept all UPI and Intent schemes
-                if (['upi', 'gpay', 'phonepe', 'paytmmp', 'intent'].contains(scheme)) {
-
-                  // FIRE AND FORGET: Notice there is NO 'await' here.
-                  // This allows Flutter to immediately return CANCEL.
-                  launchUrl(
-                      uriRequest,
-                      mode: LaunchMode.externalApplication
-                  ).then((launched) {
-                    if (!launched && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Payment app not found on this device."),
-                          backgroundColor: Colors.redAccent,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }).catchError((e) {
-                    debugPrint("Error launching deep link: $e");
-                  });
-
-                  return NavigationActionPolicy.CANCEL;
-                }
-
-                // 2. Handle your existing downloads
-                if (DownloadService.isDownloadableUrl(urlString)) {
-                  await DownloadService.downloadFile(
-                    url: urlString,
-                    context: context,
-                  );
-                  return NavigationActionPolicy.CANCEL;
-                }
-
-                return NavigationActionPolicy.ALLOW;
-              },
-              onReceivedError: (controller, request, error) async {
-                // THE FIX: If Chromium bypassed our Cancel request and showed the error,
-                // we instantly force the WebView to go back to the Razorpay UI.
-                if (error.description == "net::ERR_UNKNOWN_URL_SCHEME" || error.type == -10) {
-                  debugPrint("Caught ERR_UNKNOWN_URL_SCHEME. Forcing UI back to Razorpay.");
-                  if (await controller.canGoBack()) {
-                    await controller.goBack();
-                  }
-                  setState(() {
-                    _isLoading = false;
-                  });
-                  return;
-                }
-
-                // Handle standard errors
-                setState(() {
-                  _isLoading = false;
                 });
               },
               onLoadStop: (controller, url) async {
@@ -181,33 +146,83 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
                   _isLoading = false;
                 });
 
-                // Keep your existing JS file input logic intact
-                final acceptValue = Platform.isIOS ? 'image/jpeg,image/png' : 'image/*';
-                final shouldSetCapture = Platform.isAndroid;
-                await controller.evaluateJavascript(source: """
+                final acceptValue =
+                    Platform.isIOS ? 'image/jpeg,image/png' : 'image/*';
+
+                // Inject JavaScript to monitor file inputs.
+                // NOTE: We intentionally do NOT set capture="environment" on Android.
+                // That attribute forces a direct camera launch, bypassing the native
+                // file chooser (Photo Library / Take Photo / Choose File) entirely.
+                // On newer Android WebView versions this causes the picker to silently
+                // disappear. Let the website's own HTML decide the capture mode.
+                await controller.evaluateJavascript(
+                  source: """
                   (function() {
                     var fileInputs = document.querySelectorAll('input[type="file"]');
                     fileInputs.forEach(function(input) {
-                      if (!input.hasAttribute('accept')) input.setAttribute('accept', '$acceptValue');
-                      if ($shouldSetCapture) {
-                        if (!input.hasAttribute('capture')) input.setAttribute('capture', 'environment');
-                      } else if (input.hasAttribute('capture')) {
+                      console.log('Found file input:', input);
+
+                      // Add change listener for debugging
+                      input.addEventListener('change', function(e) {
+                        console.log('File input changed!');
+                        console.log('Files selected:', e.target.files.length);
+                        if (e.target.files.length > 0) {
+                          console.log('File name:', e.target.files[0].name);
+                          console.log('File size:', e.target.files[0].size);
+                          console.log('File type:', e.target.files[0].type);
+                        }
+                      });
+
+                      // Only set accept if the website hasn't already specified one
+                      if (!input.hasAttribute('accept')) {
+                        input.setAttribute('accept', '$acceptValue');
+                      }
+
+                      // Always remove any existing capture attribute on Android so
+                      // the full file chooser (gallery + camera + files) is shown.
+                      if (input.hasAttribute('capture')) {
                         input.removeAttribute('capture');
                       }
                     });
+
+                    console.log('File input monitoring initialized. Found ' + fileInputs.length + ' file inputs.');
                   })();
-                """);
+                """,
+                );
+              },
+              shouldOverrideUrlLoading: (controller, navigationAction) async {
+                final url = navigationAction.request.url.toString();
+
+                // Check if URL is downloadable
+                if (DownloadService.isDownloadableUrl(url)) {
+                  // Handle download
+                  await DownloadService.downloadFile(
+                    url: url,
+                    context: context,
+                  );
+                  // Prevent navigation to download URL
+                  return NavigationActionPolicy.CANCEL;
+                }
+
+                // Allow normal navigation
+                return NavigationActionPolicy.ALLOW;
               },
               onDownloadStartRequest: (controller, url) async {
                 String uuid = getFileNameFromUrl(url.url);
+                // Handle download requests
                 await DownloadService.downloadFile(
                   url: url.url.toString(),
                   context: context,
                   fileName: uuid,
                 );
               },
+              onReceivedError: (controller, request, error) {
+                setState(() {
+                  _isLoading = false;
+                });
+              },
             ),
-            if (_isLoading) const Center(child: CircularProgressIndicator()), // Or your getLoaderWidget()
+            if (_isLoading) Center(child: getLoaderWidget()),
           ],
         ),
       ),
@@ -217,12 +232,24 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
 
 String getFileNameFromUrl(Uri uri) {
   try {
+    // Get the jrxmlPath query parameter
     final jrxmlPath = uri.queryParameters['jrxmlPath'];
-    if (jrxmlPath == null || jrxmlPath.isEmpty) throw Exception('jrxmlPath parameter not found');
+
+    if (jrxmlPath == null || jrxmlPath.isEmpty) {
+      throw Exception('jrxmlPath parameter not found');
+    }
+
+    // Extract filename from the path
     final fileName = jrxmlPath.split('/').last;
-    if (fileName.isEmpty) throw Exception('Filename is empty');
+
+    if (fileName.isEmpty) {
+      throw Exception('Filename is empty');
+    }
+
     return fileName;
   } catch (e) {
-    return "${DateTime.now().millisecondsSinceEpoch}";
+    // Fallback to UUID
+    String uuid = "${DateTime.now().millisecondsSinceEpoch}";
+    return uuid;
   }
 }
