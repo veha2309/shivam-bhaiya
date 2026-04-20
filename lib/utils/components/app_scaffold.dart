@@ -53,13 +53,20 @@ class _AppScaffoldState extends State<AppScaffold> {
         }
       },
       child: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(
-                widget.background ?? ImageConstants.homeScreenBackgroundOld),
-            fit: BoxFit.cover,
-          ),
-        ),
+        decoration: widget.background != null && widget.background != ImageConstants.homeScreenBackgroundOld
+            ? BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(widget.background!),
+                  fit: BoxFit.cover,
+                ),
+              )
+            : const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
+                ),
+              ),
         child: SafeArea(
           child: Scaffold(
             drawer: widget.showAppBar ? const AppDrawer() : null,
@@ -91,26 +98,28 @@ class _AppScaffoldState extends State<AppScaffold> {
 }
 
 Widget getScreenLoaderWidget() {
-  return Positioned(
-    child: Center(
-      child: Container(
-        decoration: BoxDecoration(
-          boxShadow: const [
-            BoxShadow(blurRadius: 25.0, color: Colors.black45, spreadRadius: 1)
-          ],
-          color: Colors.white.withOpacity(1.0),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        height: 100,
-        width: 100,
-        child: LoadingIndicator(
-          indicatorType: Indicator.ballSpinFadeLoader,
-          colors: [
-            ColorConstant.primaryColor,
-            ColorConstant.primaryColor.withOpacity(0.5),
-            ColorConstant.primaryColor.withOpacity(0.1),
-          ],
-          strokeWidth: 2,
+  return RepaintBoundary(
+    child: Positioned(
+      child: Center(
+        child: Container(
+          decoration: BoxDecoration(
+            boxShadow: const [
+              BoxShadow(blurRadius: 25.0, color: Colors.black45, spreadRadius: 1)
+            ],
+            color: Colors.white.withOpacity(1.0),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          height: 100,
+          width: 100,
+          child: LoadingIndicator(
+            indicatorType: Indicator.ballSpinFadeLoader,
+            colors: [
+              ColorConstant.primaryColor,
+              ColorConstant.primaryColor.withOpacity(0.5),
+              ColorConstant.primaryColor.withOpacity(0.1),
+            ],
+            strokeWidth: 2,
+          ),
         ),
       ),
     ),

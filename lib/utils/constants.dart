@@ -79,13 +79,13 @@ final class IconConstants {
 }
 
 final class ColorConstant {
-  static const primaryColor = Color.fromRGBO(33, 96, 167, 1);
-  static const secondaryColor = Color.fromRGBO(224, 91, 47, 1);
-  static const backgroundColor = Color.fromRGBO(255, 255, 255, 1);
-  static const inactiveColor = Color.fromRGBO(98, 99, 99, 1);
-  static const onPrimary = Color.fromRGBO(255, 255, 255, 1);
-  static const primaryTextColor = Color.fromRGBO(18, 18, 18, 1);
-  static const secondaryTextColor = Color.fromRGBO(98, 99, 99, 1);
+  static const primaryColor = Color(0xFF002147);
+  static const secondaryColor = Color(0xFFC5A059);
+  static const backgroundColor = Color(0xFFF8FAFC);
+  static const inactiveColor = Color(0xFF64748B);
+  static const onPrimary = Colors.white;
+  static const primaryTextColor = Colors.black;
+  static const secondaryTextColor = Color(0xFF475569);
   static const errorColor = Color.fromRGBO(255, 0, 0, 1);
 }
 

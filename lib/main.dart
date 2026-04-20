@@ -57,6 +57,9 @@ Future<void> intialiseFirebase() async {
 void main() async {
   isUserDeletedInThisSession = false;
   WidgetsFlutterBinding.ensureInitialized();
+  // Enable pointer event resampling to match frame rate for smoother scrolling and touch interactions.
+  // This is particularly effective for 60fps+ screens.
+  WidgetsBinding.instance.resamplingEnabled = true;
   await intialiseFirebase();
 
   // Initialize download service very early, with error handling
@@ -99,9 +102,22 @@ class MyApp extends StatelessWidget {
         );
       },
       theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.transparent,
         primaryColor: ColorConstant.primaryColor,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: ColorConstant.primaryColor,
+        colorScheme: ColorScheme.light(
+          primary: ColorConstant.primaryColor,
+          secondary: ColorConstant.secondaryColor,
+          surface: const Color(0xFFEFF6FF),
+          background: const Color(0xFFDCEFFB),
+        ),
+        fontFamily: 'Roboto',
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+          titleTextStyle: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
       debugShowCheckedModeBanner: false,

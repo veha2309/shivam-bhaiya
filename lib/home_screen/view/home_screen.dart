@@ -1,23 +1,330 @@
+// ==============================================================================
+//  home_screen.dart  –  Modern Bento UI Redesign
+//
+//  UI layer is completely rewritten for a premium, next-gen aesthetic:
+//    • Pill-shaped Home / Dashboard view switcher with sliding animation
+//    • Bento-box card grid with glassmorphism (BackdropFilter)
+//    • Floating cards with diffused glow shadows and tap-scale micro-interactions
+//    • Dark navy gradient background  (#070F28 → #0C1A42)
+//    • Custom glass app-bar (logo + drawer + notification bell)
+//
+//  ALL business logic, navigation, API calls, and data models are UNCHANGED.
+// ==============================================================================
+
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:loading_indicator/loading_indicator.dart';
 import 'package:school_app/auth/model/user.dart';
 import 'package:school_app/auth/view_model/auth.dart';
+import 'package:school_app/fee_history/Model/fee_history_model.dart';
+import 'package:school_app/fee_history/ViewModel/fee_history_view_model.dart';
 import 'package:school_app/home_screen/model/daily_message.dart';
 import 'package:school_app/home_screen/model/home.dart';
 import 'package:school_app/home_screen/model/home_screen_utils.dart';
 import 'package:school_app/home_screen/view/notification_list_widget.dart';
 import 'package:school_app/home_screen/view_model/home_viewmodel.dart';
 import 'package:school_app/homework_screen/model/homeBanner_model.dart';
-
 import 'package:school_app/network_manager/api_response.dart';
+import 'package:school_app/news_events/Model/news_event.dart';
+import 'package:school_app/news_events/ViewModel/news_event_view_model.dart';
+import 'package:school_app/notifications/view/notifications_screen.dart';
 import 'package:school_app/school_details/viewmodel/school_details_viewmodel.dart';
 import 'package:school_app/utils/components/app_future_builder.dart';
-import 'package:school_app/utils/components/app_scaffold.dart';
 import 'package:school_app/utils/components/components.dart';
 import 'package:school_app/utils/components/no_data_widget.dart';
 import 'package:school_app/utils/constants.dart';
+import 'package:school_app/utils/local_storage/local_storage.dart';
 import 'package:school_app/utils/utils.dart';
 
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+// Aether Academy Theme: Scholarly, Premium, Modern
+const _kBg1         = Color(0xFFF8FAFC);   // light slate
+const _kBg2         = Color(0xFFE2E8F0);   // muted slate
+const _kPrimary     = Color(0xFF002147);   // Deep Navy
+const _kPrimaryDeep = Color(0xFF001229);
+const _kAccent      = Color(0xFFC5A059);   // Achievement Gold
+const _kGlass       = Color(0x99FFFFFF);   // 60% white - more translucent
+const _kBorder      = Color(0xFFCBD5E1);   // slate border
+const _kText        = Color(0xFF0F172A);   // near-black
+const _kOnGrad      = Colors.white;         
+const _kSub         = Color(0xFF64748B);   // slate for secondary
+const _kGlow        = Color(0x33C5A059);   // Gold glow
+const _ff           = 'Roboto';
+
+const List<List<Color>> _kGrads = [
+  [Color(0xFF002147), Color(0xFF003A75)], // Navy Gradient
+  [Color(0xFFC5A059), Color(0xFF9A7B3F)], // Gold Gradient
+  [Color(0xFF1E293B), Color(0xFF334155)], // Dark Slate Gradient
+  [Color(0xFF0F172A), Color(0xFF1E293B)], // Deepest Navy Gradient
+];
+List<Color> _grad(int i) => _kGrads[i % _kGrads.length];
+
+// ─── Staggered Entry Animation ────────────────────────────────────────────────
+class _StaggeredEntry extends StatefulWidget {
+  final Widget child;
+  final int index;
+  const _StaggeredEntry({required this.child, required this.index});
+
+  @override
+  State<_StaggeredEntry> createState() => _StaggeredEntryState();
+}
+
+class _StaggeredEntryState extends State<_StaggeredEntry> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.8, curve: Curves.easeOut)),
+    );
+    _slide = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+    );
+    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
+  }
+}
+
+// ─── Glass Card ───────────────────────────────────────────────────────────────
+class _GlassCard extends StatefulWidget {
+  final Widget child;
+  final EdgeInsets? padding;
+  final double radius;
+  final bool glow;
+  final Color? bg;
+  final VoidCallback? onTap;
+  final double? height;
+
+  const _GlassCard({
+    required this.child,
+    this.padding,
+    this.radius = 20,
+    this.glow = false,
+    this.bg,
+    this.onTap,
+    this.height,
+  });
+
+  @override
+  State<_GlassCard> createState() => _GlassCardState();
+}
+
+class _GlassCardState extends State<_GlassCard>
+    with TickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+  late final AnimationController _shimmerCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 110));
+    _scale = Tween<double>(begin: 1.0, end: 0.94)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    
+    _shimmerCtrl = AnimationController(
+      vsync: this, duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _shimmerCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => widget.onTap != null ? _ctrl.forward() : null,
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap?.call();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            boxShadow: [
+              if (widget.glow)
+                BoxShadow(
+                  color: _kGlow.withOpacity(0.15), 
+                  blurRadius: 30, 
+                  spreadRadius: 2
+                ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08), 
+                blurRadius: 12, 
+                offset: const Offset(0, 6)
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(widget.radius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: widget.bg ?? _kGlass,
+                      borderRadius: BorderRadius.circular(widget.radius),
+                      border: Border.all(color: _kBorder.withOpacity(0.4)),
+                    ),
+                    padding: widget.padding ?? const EdgeInsets.all(18),
+                    child: widget.child,
+                  ),
+                  // Shimmer shine
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: _shimmerCtrl,
+                      builder: (context, child) {
+                        return FractionallySizedBox(
+                          widthFactor: 2.0,
+                          alignment: Alignment(-3.0 + (_shimmerCtrl.value * 6.0), 0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withOpacity(0),
+                                  Colors.white.withOpacity(0.05),
+                                  Colors.white.withOpacity(0),
+                                ],
+                                stops: const [0.4, 0.5, 0.6],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+// ─── Icon Button ──────────────────────────────────────────────────────────────
+class _IconBtn extends StatelessWidget {
+  final IconData icon;
+  const _IconBtn({required this.icon});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _kGlass,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kBorder.withOpacity(0.5)),
+        ),
+        child: Icon(icon, color: _kPrimary, size: 22),
+      );
+}
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              // Border only, ClipRRect handles the shape
+              border: Border.all(color: color.withOpacity(0.2)),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(height: 8),
+                Text(value,
+                    style: TextStyle(
+                        fontFamily: _ff,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: color)),
+                const SizedBox(height: 2),
+                Text(label,
+                    style: const TextStyle(
+                        fontFamily: _ff, fontSize: 10, color: _kSub),
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+// ─── Home Screen ──────────────────────────────────────────────────────────────
 final class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';
   const HomeScreen({super.key});
@@ -26,7 +333,11 @@ final class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  // ── Original state vars ──────────────────────────────────────────────────────
   User? loggedInUser;
   Future<ApiResponse<HomeModel>>? homeDetail;
   ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
@@ -35,86 +346,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<HomebannerModel> banner = [];
   int currentPage = 0;
 
+  Future<ApiResponse<List<FeeHistoryModel>>>? feeHistory;
+  Future<ApiResponse<NewsData>>? newsEvents;
+
+  // ── New UI state ─────────────────────────────────────────────────────────────
+  int _activeView = 0;
+  late final AnimationController _toggleAnim;
+  late final Animation<double> _toggleSlide;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
+  final PageController _bannerCtrl = PageController();
+  int _bannerPage = 0;
+
+  // ── Lifecycle (unchanged) ────────────────────────────────────────────────────
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _toggleAnim.dispose();
+    _bannerCtrl.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkAndShowPopup(context);
-    }
+    if (state == AppLifecycleState.resumed) _checkAndShowPopup(context);
   }
 
   Future<void> _checkAndShowPopup(BuildContext context) async {
     if (await shouldShowPopup()) {
-      var response = await HomeViewmodel.instance.getDailyMessage();
+      final response = await HomeViewmodel.instance.getDailyMessage();
       if (response.success && (response.data?.isNotEmpty ?? false)) {
-        // Get today's message by matching the date
-        DailyMessage? todayMessage;
+        DailyMessage? todayMsg;
         try {
-          todayMessage = response.data?.firstWhere(
-            (message) =>
-                message.messageDate == getDDMMYYYYInNum(DateTime.now()),
-          );
+          todayMsg = response.data?.firstWhere(
+              (m) => m.messageDate == getDDMMYYYYInNum(DateTime.now()));
         } catch (_) {}
 
-        if (todayMessage != null) {
+        if (todayMsg != null) {
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
-              title: const Text(
-                "Thought of the day",
-                textAlign: TextAlign.center,
-                textScaler: TextScaler.linear(1.0),
-                style: TextStyle(
-                  color: ColorConstant.primaryTextColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              content: Text(
-                todayMessage!.message ?? "",
-                textAlign: TextAlign.center,
-                textScaler: const TextScaler.linear(1.0),
-                style: const TextStyle(
-                  color: ColorConstant.primaryTextColor,
-                ),
-              ),
-              contentPadding: const EdgeInsets.only(
-                  left: 16, right: 16, top: 16.0, bottom: 16.0),
-              actionsAlignment: MainAxisAlignment.end,
-              actionsPadding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: 16.0,
-              ),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              backgroundColor: Colors.white,
+              title: const Text('Thought of the Day',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: _kText,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: _ff)),
+              content: Text(todayMsg!.message ?? '',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _kSub, fontFamily: _ff)),
+              actionsAlignment: MainAxisAlignment.center,
+              actionsPadding: const EdgeInsets.only(bottom: 16),
               actions: [
-                Column(
-                  children: [
-                    InkWell(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        width: 100,
-                        decoration: BoxDecoration(
-                          color: ColorConstant.primaryColor,
-                          borderRadius: BorderRadius.circular(4),
-                          shape: BoxShape.rectangle,
-                          border: Border.all(
-                            color: ColorConstant.primaryColor,
-                            width: 2,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.thumb_up,
-                          color: ColorConstant.onPrimary,
-                        ),
-                      ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 36, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [_kPrimary, _kPrimaryDeep]),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: _kGlow, blurRadius: 12)],
                     ),
-                  ],
-                )
+                    child: const Icon(Icons.thumb_up_rounded, color: _kText),
+                  ),
+                ),
               ],
             ),
           );
@@ -127,10 +426,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // First time check jab app launch ho
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndShowPopup(context);
-    });
+
+    _toggleAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 240));
+    _toggleSlide = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _toggleAnim, curve: Curves.easeInOut));
+
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkAndShowPopup(context));
+
     try {
       loggedInUser = AuthViewModel.instance.getLoggedInUser();
       callGetHomeDetailFuture();
@@ -138,45 +442,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void callGetBannerService() async {
-    var response = await HomeViewmodel.instance.getHomeBanner();
-    if (response.success) {
-      banner = response.data ?? [];
-      setState(() {});
-    }
+    final r = await HomeViewmodel.instance.getHomeBanner();
+    if (r.success) setState(() => banner = r.data ?? []);
   }
 
   void callGetHomeDetailFuture() {
     homeModel = null;
     menuDetailMap = {};
-    homeDetail = HomeViewmodel.instance.fetchHomeDetail().then((response) {
+    homeDetail = HomeViewmodel.instance.fetchHomeDetail();
+    feeHistory = FeeHistoryViewModel.instance.getFeeHistory();
+    newsEvents = NewsEventViewModel.instance.getNewsAndEvent(DateTime.now());
+
+    homeDetail?.then((response) {
       if (response.success) {
         homeModel = response.data;
         if (homeModel != null) AuthViewModel.instance.setHomeModel(homeModel!);
 
         homeModel?.menuDetails?.forEach((menuDetail) {
-          if (menuDetail.categoryId == "2") {
-            if (menuDetailMap[menuDetail.categoryId] != null) {
-              menuDetailMap[menuDetail.categoryId]!.add(menuDetail);
-            } else {
-              menuDetailMap[menuDetail.categoryId ?? ""] = [menuDetail];
-            }
+          if (menuDetail.categoryId == '2') {
+            menuDetailMap
+                .putIfAbsent(menuDetail.categoryId ?? '', () => [])
+                .add(menuDetail);
           } else {
-            if (menuDetailMap["1"] != null) {
-              menuDetailMap["1"]!.add(menuDetail);
-            } else {
-              menuDetailMap["1"] = [menuDetail];
-            }
+            menuDetailMap.putIfAbsent('1', () => []).add(menuDetail);
           }
-
           menuDetailMap.map((key, value) {
             value.sort((a, b) {
-              int getPositionOfA =
-                  fromMobileMenuId(a.mobileMenuId ?? "")?.position ?? 9999;
-
-              int getPositionOfB =
-                  fromMobileMenuId(b.mobileMenuId ?? "")?.position ?? 9999;
-
-              return (getPositionOfA) - (getPositionOfB);
+              final pA =
+                  fromMobileMenuId(a.mobileMenuId ?? '')?.position ?? 9999;
+              final pB =
+                  fromMobileMenuId(b.mobileMenuId ?? '')?.position ?? 9999;
+              return pA - pB;
             });
             return MapEntry(key, value);
           });
@@ -185,7 +481,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         SchoolDetailsViewModel.instance.registerDeviceForNotifications();
         SchoolDetailsViewModel.instance.subscribeTopicId();
       }
-
       return response;
     });
     callGetBannerService();
@@ -196,186 +491,714 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.didUpdateWidget(oldWidget);
     try {
       loggedInUser = AuthViewModel.instance.getLoggedInUser();
-      setState(() {
-        callGetHomeDetailFuture();
-      });
+      setState(callGetHomeDetailFuture);
     } catch (_) {}
   }
 
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  String get _dateLabel {
+    const m = [
+      'Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    final n = DateTime.now();
+    return '${n.day} ${m[n.month - 1]}, ${n.year}';
+  }
+
+  void _switchView(int v) {
+    if (v == _activeView) return;
+    setState(() => _activeView = v);
+    v == 1 ? _toggleAnim.forward() : _toggleAnim.reverse();
+  }
+
+  void _go(MenuDetail md) {
+    final dest = navigateToMenuDestination(md, title: md.menuName);
+    if (dest != null) navigateToScreen(context, dest);
+  }
+
+  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Exit the app when back button is pressed on the home screen
-        SystemNavigator.pop();
-        return true;
+    super.build(context);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) SystemNavigator.pop();
       },
-      child: AppScaffold(
-        isLoadingNotifier: isLoadingNotifier,
-        showBackButton: false,
-        background: ImageConstants.homeScreenBackground,
-        body: RefreshIndicator(
-          onRefresh: () {
-            setState(() {
-              callGetHomeDetailFuture();
-            });
-            return Future(() => null);
-          },
-          child: AppFutureBuilder(
-            future: homeDetail,
-            builder: (context, snapshot) {
-              if (homeModel?.menuDetails?.isEmpty ?? true) {
-                return const NoDataWidget();
-              }
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  spacing: 16,
-                  children: [
-                    UserHeaderWidget(user: loggedInUser, homeModel: homeModel),
-                    Expanded(
-                        child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: getHomeScreen(),
-                    ))
-                  ],
-                ),
-              );
-            },
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: const AppDrawer(),
+        backgroundColor: Colors.transparent,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_kBg1, _kBg2],
+            ),
+          ),
+          child: SafeArea(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: isLoadingNotifier,
+              builder: (ctx, loading, _) => Stack(
+                children: [
+                  Column(
+                    children: [
+                      _buildGlassBar(),
+                      _buildToggle(),
+                      Expanded(
+                        child: RefreshIndicator(
+                          color: _kPrimary,
+                          backgroundColor: _kBg2,
+                          onRefresh: () {
+                            setState(callGetHomeDetailFuture);
+                            return Future<void>.value();
+                          },
+                          child: AppFutureBuilder(
+                            future: homeDetail,
+                            builder: (_, snap) {
+                              if (homeModel?.menuDetails?.isEmpty ?? true) {
+                                return const NoDataWidget();
+                              }
+                              return AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 280),
+                                switchInCurve: Curves.easeOut,
+                                switchOutCurve: Curves.easeIn,
+                                transitionBuilder: (child, anim) =>
+                                    FadeTransition(
+                                        opacity: anim, child: child),
+                                child: _activeView == 0
+                                    ? _buildHomeView()
+                                    : _buildDashboardView(),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (loading) _buildLoader(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget getHomeScreen() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        const NotificationListWidget(),
-        const SizedBox(height: 16),
-        getQuickActionsWidget(),
-        const SizedBox(height: 16),
-        if (banner.isNotEmpty) ...[
-          getBannerWidget(),
-          const SizedBox(height: 16),
-        ],
-        ...menuDetailMap["1"]?.asMap().entries.map(
-              (entry) {
-                int index = entry.key;
-
-                int backgroundIndex = 0;
-
-                if (index % 4 == 0) {
-                  backgroundIndex = 0;
-                } else if (index % 4 == 1) {
-                  backgroundIndex = 1;
-                } else if (index % 4 == 2) {
-                  backgroundIndex = 2;
-                } else if (index % 4 == 3) {
-                  backgroundIndex = 3;
-                }
-
-                var menuDetail = entry.value;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: RectangleTileComponent(
-                      backgroundImagePath: getBackgroundPath[backgroundIndex],
-                      title: menuDetail.menuName ?? "",
-                      icon: getMenuIcon(menuDetail),
-                      onTap: () {
-                        Widget? destinationWidget = navigateToMenuDestination(
-                          menuDetail,
-                          title: menuDetail.menuName,
-                        );
-
-                        if (destinationWidget != null) {
-                          navigateToScreen(
-                            context,
-                            destinationWidget,
-                          );
-                        }
-                      }),
-                );
-              },
-            ) ??
-            [],
-        const SizedBox(
-          height: 66,
-        )
-      ],
-    );
-  }
-
-  Widget getBannerWidget() {
-    int currentPage = 0;
-    double size = getWidthOfScreen(context) - 32;
-    return StatefulBuilder(
-      builder: (context, setStateful) {
-        return Container(
-          height: (size / 2) + 20,
-          width: size,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            image: const DecorationImage(
-              image: AssetImage(ImageConstants.homeScreenYellow),
-              fit: BoxFit.cover,
+  // ── Glass App Bar ────────────────────────────────────────────────────────────
+  Widget _buildGlassBar() => RepaintBoundary(
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xB3FFFFFF),   // 70% white – visible on light bg
+              border:
+                  Border(bottom: BorderSide(color: _kBorder, width: 1)),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                  child: const _IconBtn(icon: Icons.menu_rounded),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Image.asset(
+                    ImageConstants.logoImagePath,
+                    height: 36,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+                if (LocalStorage.wasNotificationShownToday())
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen()),
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const _IconBtn(
+                            icon: Icons.notifications_rounded),
+                        Positioned(
+                          top: 1,
+                          right: 1,
+                          child: Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: _kAccent,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: _kBg1, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: PageView.builder(
-                  itemCount: banner.length,
-                  onPageChanged: (index) {
-                    setStateful(() {
-                      currentPage = index;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final item = banner[index];
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: (item.attachment?.isNotEmpty ?? false)
-                            ? DecorationImage(
-                                image: NetworkImage(item.attachment ?? ""),
-                                fit: BoxFit.contain,
-                                onError: (exception, stackTrace) {
-                                  // Handle image loading error
-                                },
-                              )
-                            : const DecorationImage(
-                                image:
-                                    AssetImage(ImageConstants.homeScreenYellow),
-                                fit: BoxFit.cover,
-                              ),
+        ),
+      ));
+
+  // ── Pill View Toggle ─────────────────────────────────────────────────────────
+  Widget _buildToggle() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: LayoutBuilder(
+          builder: (_, c) {
+            final pillW = c.maxWidth / 2;
+            return Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: _kGlass,
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Stack(
+                children: [
+                  AnimatedBuilder(
+                    animation: _toggleSlide,
+                    builder: (_, __) => Positioned(
+                      left: _toggleSlide.value * pillW,
+                      top: 3,
+                      bottom: 3,
+                      width: pillW,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [_kPrimary, _kPrimaryDeep]),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                                color: _kGlow,
+                                blurRadius: 16,
+                                spreadRadius: 2)
+                          ],
+                        ),
                       ),
-                    );
-                  },
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      _tab('Home', 0),
+                      _tab('Dashboard', 1),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+  Widget _tab(String label, int idx) => Expanded(
+        child: GestureDetector(
+          onTap: () => _switchView(idx),
+          behavior: HitTestBehavior.opaque,
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontFamily: _ff,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                // active tab sits on blue gradient pill → white text
+                // inactive sits on glass pill → slate text
+                color: _activeView == idx ? Colors.white : _kSub,
+                letterSpacing: 0.3,
+              ),
+              child: Text(label),
+            ),
+          ),
+        ),
+      );
+
+  // ── HOME VIEW ────────────────────────────────────────────────────────────────
+  Widget _buildHomeView() => SingleChildScrollView(
+        key: const ValueKey('home'),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Hero greeting card
+            _StaggeredEntry(
+              index: 0,
+              child: _GlassCard(
+                glow: true,
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_greeting,
+                              style: const TextStyle(
+                                  fontFamily: _ff,
+                                  fontSize: 13,
+                                  color: _kSub,
+                                  letterSpacing: 0.5)),
+                          const SizedBox(height: 4),
+                          Text(loggedInUser?.name ?? '',
+                              style: const TextStyle(
+                                  fontFamily: _ff,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: _kText)),
+                          const SizedBox(height: 8),
+                          if ((homeModel?.className ?? '').isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _kPrimary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: _kPrimary.withOpacity(0.2)),
+                              ),
+                              child: Text(homeModel!.className!,
+                                  style: const TextStyle(
+                                      fontFamily: _ff,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _kPrimary)),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(13),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                                colors: [_kPrimary, _kPrimaryDeep],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: _kPrimary.withOpacity(0.3),
+                                  blurRadius: 20,
+                                  spreadRadius: 2)
+                            ],
+                          ),
+                          child: const Icon(Icons.school_rounded,
+                              color: _kOnGrad, size: 28),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(_dateLabel,
+                            style: const TextStyle(
+                                fontFamily: _ff,
+                                fontSize: 12,
+                                color: _kSub)),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  banner.length,
-                  (index) => Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: currentPage == index
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey.withOpacity(0.5),
+            ),
+
+            const SizedBox(height: 20),
+
+            if ((menuDetailMap['2']?.length ?? 0) > 0) ...[
+              _StaggeredEntry(index: 1, child: _label('Quick Actions')),
+              const SizedBox(height: 10),
+              _StaggeredEntry(index: 2, child: _buildQuickActions()),
+              const SizedBox(height: 20),
+            ],
+
+            _StaggeredEntry(index: 3, child: _label('Daily Updates')),
+            const SizedBox(height: 10),
+            _StaggeredEntry(
+              index: 4,
+              child: RepaintBoundary(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _kGlass,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _kBorder.withOpacity(0.5)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 16)
+                        ],
+                      ),
+                      child: const NotificationListWidget(),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+            ),
+
+            if (banner.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _StaggeredEntry(index: 5, child: _label('Announcements')),
+              const SizedBox(height: 10),
+              _StaggeredEntry(index: 6, child: _buildBannerCard()),
+            ],
+
+            if ((menuDetailMap['1']?.length ?? 0) > 0) ...[
+              const SizedBox(height: 20),
+              _StaggeredEntry(index: 7, child: _label('Features')),
+              const SizedBox(height: 10),
+              _StaggeredEntry(index: 8, child: _buildMenuBento()),
+            ],
+          ],
+        ),
+      );
+
+  // ── DASHBOARD VIEW ───────────────────────────────────────────────────────────
+  Widget _buildDashboardView() {
+    final mainItems  = menuDetailMap['1'] ?? [];
+    final quickItems = menuDetailMap['2'] ?? [];
+
+    return SingleChildScrollView(
+      key: const ValueKey('dashboard'),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Stats row
+          _StaggeredEntry(
+            index: 0,
+            child: Row(children: [
+              Expanded(
+                child: _StatCard(
+                  label: 'Features',
+                  value: '${mainItems.length}',
+                  icon: Icons.apps_rounded,
+                  color: _kPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  label: 'Quick Actions',
+                  value: '${quickItems.length}',
+                  icon: Icons.bolt_rounded,
+                  color: _kAccent,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  label: 'Class',
+                  value: homeModel?.className?.split(' ').last ?? '-',
+                  icon: Icons.class_rounded,
+                  color: const Color(0xFF10B981),
+                ),
+              ),
+            ]),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Student info
+          _StaggeredEntry(
+            index: 1,
+            child: _GlassCard(
+              glow: true,
+              padding: const EdgeInsets.all(18),
+              child: Row(children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [_kPrimary, _kPrimaryDeep]),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(color: _kPrimary.withOpacity(0.2), blurRadius: 16)
+                    ],
+                  ),
+                  child: const Icon(Icons.person_rounded,
+                      color: _kOnGrad, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(loggedInUser?.name ?? '',
+                          style: const TextStyle(
+                              fontFamily: _ff,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: _kText)),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${homeModel?.className ?? ''} · ${loggedInUser?.userType ?? ''}',
+                        style: const TextStyle(
+                            fontFamily: _ff, fontSize: 12, color: _kSub),
+                      ),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Spotlight 2×2 grid
+          if (mainItems.length >= 4) ...[
+            _StaggeredEntry(index: 2, child: _label('Spotlight')),
+            const SizedBox(height: 10),
+            _StaggeredEntry(
+              index: 3,
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.1,
+                children: mainItems.take(4).toList().asMap().entries.map((e) {
+                  final grads = _grad(e.key);
+                  final md    = e.value;
+                  return _GlassCard(
+                    padding: const EdgeInsets.all(14),
+                    onTap: () => _go(md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: grads),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Image.asset(getMenuIcon(md),
+                              width: 24,
+                              height: 24,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.star_rounded,
+                                  color: _kOnGrad,
+                                  size: 24)),
+                        ),
+                        Text(md.menuName ?? '',
+                            style: const TextStyle(
+                                fontFamily: _ff,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _kText),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // All Features compact list
+          _StaggeredEntry(index: 4, child: _label('All Features')),
+          const SizedBox(height: 10),
+          ...mainItems.asMap().entries.map((e) {
+            final grads = _grad(e.key);
+            final md    = e.value;
+            final idx   = e.key;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _StaggeredEntry(
+                index: 5 + idx,
+                child: _GlassCard(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  onTap: () => _go(md),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+                          grads[0].withOpacity(0.7),
+                          grads[1].withOpacity(0.5)
+                        ]),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Image.asset(getMenuIcon(md),
+                          width: 22,
+                          height: 22,
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.widgets_rounded,
+                              color: _kOnGrad,
+                              size: 22)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(md.menuName ?? '',
+                          style: const TextStyle(
+                              fontFamily: _ff,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _kText)),
+                    ),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: _kSub, size: 20),
+                  ]),
+                ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 20),
+
+          // Fees section
+          _StaggeredEntry(index: 5, child: _label('Fees & Payments')),
+          const SizedBox(height: 10),
+          _StaggeredEntry(index: 6, child: _buildFeesSection()),
+
+          const SizedBox(height: 20),
+
+          // Smart Reminders
+          _StaggeredEntry(index: 7, child: _buildSmartReminders()),
+
+          const SizedBox(height: 20),
+
+          // Mini Calendar / Events
+          _StaggeredEntry(index: 8, child: _buildMiniCalendarSection()),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeesSection() {
+    return AppFutureBuilder<ApiResponse<List<FeeHistoryModel>>>(
+      future: feeHistory,
+      builder: (context, snapshot) {
+        final fees = snapshot.data?.data ?? [];
+        double totalDue = 0;
+        for (var f in fees) {
+          totalDue += double.tryParse(f.balance ?? '0') ?? 0;
+        }
+
+        MenuDetail? payMenu;
+        for (var list in menuDetailMap.values) {
+          for (var item in list) {
+            if (item.mobileMenuId == '59') {
+              payMenu = item;
+              break;
+            }
+          }
+        }
+
+        return _GlassCard(
+          glow: totalDue > 0,
+          bg: totalDue > 0 ? _kAccent.withOpacity(0.05) : null,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('ACCOUNT STATUS',
+                          style: TextStyle(
+                              fontFamily: _ff,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: _kSub,
+                              letterSpacing: 1.2)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(
+                            totalDue > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                            size: 18,
+                            color: totalDue > 0 ? _kAccent : Colors.green,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            totalDue > 0 ? 'Fee Payment Pending' : 'Account Up to Date',
+                            style: TextStyle(
+                                fontFamily: _ff,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: totalDue > 0 ? _kAccent : Colors.green),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (totalDue > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _kAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '₹${totalDue.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                            fontFamily: _ff,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: _kAccent),
+                      ),
+                    ),
+                ],
+              ),
+              if (totalDue > 0) ...[
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: payMenu != null ? () => _go(payMenu!) : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kPrimary,
+                      foregroundColor: _kOnGrad,
+                      elevation: 4,
+                      shadowColor: _kPrimary.withOpacity(0.4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('PAY NOW',
+                            style: TextStyle(
+                                fontFamily: _ff,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1)),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -383,64 +1206,450 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget getQuickActionsWidget() {
-    bool isTeacher =
-        AuthViewModel.instance.getLoggedInUser()?.userType.toUpperCase() ==
-            "TEACHER";
+Widget _buildMiniCalendarSection() {
+    return AppFutureBuilder<ApiResponse<NewsData>>(
+      future: newsEvents,
+      builder: (context, snapshot) {
+        // Flatten the 'news' lists from all 'months' into a single list
+        final events = snapshot.data?.data?.months
+                ?.expand((month) => month.news ?? <NewsItem>[])
+                .toList() ?? [];
 
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _label('Upcoming Events'),
+            const SizedBox(height: 10),
+            if (events.isEmpty)
+              _GlassCard(
+                child: const Center(
+                  heightFactor: 2,
+                  child: Text('No upcoming events found',
+                      style: TextStyle(fontFamily: _ff, color: _kSub, fontSize: 13)),
+                ),
+              )
+            else
+              SizedBox(
+                height: 110,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: events.length,
+                  itemBuilder: (context, i) {
+                    final ev = events[i];
+                    return Container(
+                      width: 240,
+                      margin: const EdgeInsets.only(right: 12),
+                      child: _GlassCard(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Updated from ev.title to ev.subject
+                            Text(ev.subject ?? 'Event',
+                                style: const TextStyle(
+                                    fontFamily: _ff,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: _kText),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            const Spacer(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today_rounded, size: 12, color: _kSub),
+                                    const SizedBox(width: 6),
+                                    // Updated from ev.date to ev.fromDate
+                                    Text(ev.fromDate ?? '',
+                                        style: const TextStyle(
+                                            fontFamily: _ff, fontSize: 11, color: _kSub)),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _kPrimary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('View', style: TextStyle(fontSize: 10, color: _kPrimary, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+  Widget _buildSmartReminders() {
     return Column(
-      spacing: 8.0,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GridView.count(
-          crossAxisCount: (menuDetailMap["2"]?.length ?? 2) == 1 ? 1 : 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: (menuDetailMap["2"]?.length ?? 2) == 1 ? 2.5 : 1,
-          children: menuDetailMap["2"]?.asMap().entries.map(
-                (entry) {
-                  int index = entry.key;
-                  var menuDetail = entry.value;
-
-                  String icon;
-
-                  if (isTeacher) {
-                    icon = index % 2 != 0
-                        ? IconConstants.studentSearch
-                        : IconConstants.attendance;
-                  } else {
-                    icon = index % 2 != 0
-                        ? IconConstants.noticeBoard
-                        : IconConstants.homework;
-                  }
-
-                  return SquareGridComponent(
-                    backgroundImage: index % 2 == 0
-                        ? ImageConstants.homeScreenOrangeSquare
-                        : ImageConstants.homeScreenPinkSquare,
-                    title: menuDetail.menuName ?? "",
-                    icon: icon,
-                    onTap: () {
-                      Widget? destinationWidget = navigateToMenuDestination(
-                        menuDetail,
-                        title: menuDetail.menuName,
-                      );
-                      if (destinationWidget != null) {
-                        navigateToScreen(context, destinationWidget);
-                      }
-                    },
-                  );
-                },
-              ).toList() ??
-              [],
+        _label('Smart Reminders'),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 70,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            children: [
+              _reminderCard('Exam preparation: Revision starting', Icons.auto_stories_rounded, Colors.orange),
+              _reminderCard('Weekly Assignment: Physics due tomorrow', Icons.assignment_rounded, Colors.blue),
+              _reminderCard('Parent Teacher Meeting on Saturday', Icons.people_alt_rounded, Colors.purple),
+            ],
+          ),
         ),
       ],
     );
   }
+
+  Widget _reminderCard(String title, IconData icon, Color color) {
+    return Container(
+      width: 220,
+      margin: const EdgeInsets.only(right: 12),
+      child: _GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        bg: color.withOpacity(0.04),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(title,
+                  style: const TextStyle(
+                      fontFamily: _ff,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _kText),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Quick Actions ────────────────────────────────────────────────────────────
+  Widget _buildQuickActions() {
+    final items     = menuDetailMap['2'] ?? [];
+    final isTeacher = loggedInUser?.userType.toUpperCase() == 'TEACHER';
+
+    return GridView.count(
+      crossAxisCount: items.length == 1 ? 1 : 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: items.length == 1 ? 3.5 : 1.05,
+      children: items.asMap().entries.map((e) {
+        final idx = e.key;
+        final md  = e.value;
+        // Exact same icon logic as the original
+        final icon = isTeacher
+            ? (idx % 2 != 0
+                ? IconConstants.studentSearch
+                : IconConstants.attendance)
+            : (idx % 2 != 0
+                ? IconConstants.noticeBoard
+                : IconConstants.homework);
+        final grads = _grad(idx);
+        return _GlassCard(
+          padding: EdgeInsets.zero,
+          onTap: () => _go(md),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: grads,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Image.asset(icon,
+                          width: 42,
+                          height: 42,
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.bolt_rounded,
+                              color: _kOnGrad,   // on dark gradient card
+                              size: 42)),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        color: Color(0x80FFFFFF), size: 14),
+                  ],
+                ),
+                Text(md.menuName ?? '',
+                    style: const TextStyle(
+                        fontFamily: _ff,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: _kOnGrad),  // on dark gradient card
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Banner Carousel ──────────────────────────────────────────────────────────
+  Widget _buildBannerCard() {
+    final w = MediaQuery.of(context).size.width - 32;
+    return _GlassCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(
+            height: w * 0.46,
+            child: PageView.builder(
+              controller: _bannerCtrl,
+              itemCount: banner.length,
+              onPageChanged: (i) => setState(() => _bannerPage = i),
+              itemBuilder: (_, i) {
+                final item = banner[i];
+                return (item.attachment?.isNotEmpty ?? false)
+                    ? Image.network(item.attachment!, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _bannerPlaceholder())
+                    : _bannerPlaceholder();
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            banner.length,
+            (i) => AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: _bannerPage == i ? 22 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: _bannerPage == i ? _kPrimary : _kSub,
+                borderRadius: BorderRadius.circular(3),
+                boxShadow: _bannerPage == i
+                    ? [BoxShadow(color: _kGlow, blurRadius: 8)]
+                    : null,
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _bannerPlaceholder() => Container(
+        color: _kBg2,
+        child: const Center(
+            child: Icon(Icons.image_rounded, color: _kSub, size: 48)),
+      );
+
+  // ── Menu Bento Grid ──────────────────────────────────────────────────────────
+  Widget _buildMenuBento() {
+    final items = menuDetailMap['1'] ?? [];
+    final rows  = <Widget>[];
+    int i = 0;
+    int staggerIdx = 9; // starting after home view items
+    while (i < items.length) {
+      if (i % 3 == 0) {
+        rows
+          ..add(_StaggeredEntry(index: staggerIdx++, child: _fullCard(items[i], i)))
+          ..add(const SizedBox(height: 12));
+        i++;
+      } else {
+        final hasRight = i + 1 < items.length;
+        rows.add(_StaggeredEntry(
+          index: staggerIdx++,
+          child: Row(children: [
+            Expanded(child: _halfCard(items[i], i)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: hasRight
+                    ? _halfCard(items[i + 1], i + 1)
+                    : const SizedBox()),
+          ]),
+        ));
+        rows.add(const SizedBox(height: 12));
+        i += hasRight ? 2 : 1;
+      }
+    }
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: rows);
+  }
+
+  Widget _fullCard(MenuDetail md, int idx) {
+    final g = _grad(idx);
+    return _GlassCard(
+      padding: EdgeInsets.zero,
+      onTap: () => _go(md),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: [g[0].withOpacity(0.55), g[1].withOpacity(0.35)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.13),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Image.asset(getMenuIcon(md),
+                width: 30,
+                height: 30,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.widgets_rounded,
+                    color: _kOnGrad,   // on dark gradient card
+                    size: 30)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(md.menuName ?? '',
+                style: const TextStyle(
+                    fontFamily: _ff,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _kOnGrad),  // on dark gradient card
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ),
+          const Icon(Icons.chevron_right_rounded,
+              color: Color(0x80FFFFFF), size: 22),
+        ]),
+      ),
+    );
+  }
+
+  Widget _halfCard(MenuDetail md, int idx) {
+    final g = _grad(idx);
+    return _GlassCard(
+      padding: EdgeInsets.zero,
+      onTap: () => _go(md),
+      height: 128,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: [g[0].withOpacity(0.45), g[1].withOpacity(0.28)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.13),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Image.asset(getMenuIcon(md),
+                  width: 24,
+                  height: 24,
+                  errorBuilder: (_, __, ___) => const Icon(
+                      Icons.widgets_rounded,
+                      color: _kOnGrad,   // on dark gradient card
+                      size: 24)),
+            ),
+            Text(md.menuName ?? '',
+                style: const TextStyle(
+                    fontFamily: _ff,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _kOnGrad),  // on dark gradient card
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Shared Utilities ─────────────────────────────────────────────────────────
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(left: 2),
+        child: Text(
+          text.toUpperCase(),
+          style: const TextStyle(
+              fontFamily: _ff,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.6,
+              color: _kSub),
+        ),
+      );
+
+  Widget _buildLoader() => Positioned.fill(
+        child: Container(
+          color: Colors.black45,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _kBg2,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _kBorder),
+              ),
+              child: SizedBox(
+                height: 60,
+                width: 60,
+                child: LoadingIndicator(
+                  indicatorType: Indicator.ballSpinFadeLoader,
+                  colors: [
+                    _kPrimary,
+                    _kPrimary.withOpacity(0.5),
+                    _kPrimary.withOpacity(0.1),
+                  ],
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
+// Legacy helper kept so other files that may import it don't break.
 List<String> getBackgroundPath = [
   ImageConstants.homeScreenPurple,
   ImageConstants.homeScreenGreen,

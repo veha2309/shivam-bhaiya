@@ -236,20 +236,23 @@ class _AppDrawerState extends State<AppDrawer> {
         Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            IconButton(
-              icon: const FaIcon(
-                FontAwesomeIcons.facebook,
-                size: 20,
-                color: ColorConstant.primaryColor,
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                color: ColorConstant.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              style: IconButton.styleFrom(
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              child: IconButton(
+                icon: const FaIcon(
+                  FontAwesomeIcons.facebook,
+                  size: 18,
+                  color: ColorConstant.primaryColor,
+                ),
+                onPressed: () {
+                  launchURLString(
+                      "https://www.facebook.com/VivekanandSchoolDBlock/");
+                },
               ),
-              onPressed: () {
-                launchURLString(
-                    "https://www.facebook.com/VivekanandSchoolDBlock/");
-              },
             ),
             // IconButton(
             //   icon: const FaIcon(FontAwesomeIcons.xTwitter,
@@ -262,28 +265,34 @@ class _AppDrawerState extends State<AppDrawer> {
             //     launchURLString("https://x.com/VivekanandScul");
             //   },
             // ),
-            IconButton(
-              icon: const FaIcon(FontAwesomeIcons.instagram,
-                  size: 22, color: ColorConstant.primaryColor),
-              style: IconButton.styleFrom(
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                color: ColorConstant.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              onPressed: () {
-                launchURLString("https://www.instagram.com/vivekanandschool/");
-              },
+              child: IconButton(
+                icon: const FaIcon(FontAwesomeIcons.instagram,
+                    size: 18, color: ColorConstant.primaryColor),
+                onPressed: () {
+                  launchURLString("https://www.instagram.com/vivekanandschool/");
+                },
+              ),
             ),
-            IconButton(
-              icon: const FaIcon(FontAwesomeIcons.youtube,
-                  size: 23, color: ColorConstant.primaryColor),
-              style: IconButton.styleFrom(
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                color: ColorConstant.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              onPressed: () {
-                launchURLString(
-                    "https://www.youtube.com/channel/UCSHkcyHkZIM_oWT1afjSzXw");
-              },
+              child: IconButton(
+                icon: const FaIcon(FontAwesomeIcons.youtube,
+                    size: 18, color: ColorConstant.primaryColor),
+                onPressed: () {
+                  launchURLString(
+                      "https://www.youtube.com/channel/UCSHkcyHkZIM_oWT1afjSzXw");
+                },
+              ),
             ),
           ],
         ),

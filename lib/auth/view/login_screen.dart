@@ -44,23 +44,32 @@ class _LoginScreenState extends State<LoginScreen> {
           popScreen(context);
         }
       },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          child: ValueListenableBuilder(
-              valueListenable: isLoadingNotifier,
-              builder: (context, value, _) {
-                return Stack(
-                  children: [
-                    AbsorbPointer(
-                      absorbing: isLoadingNotifier.value,
-                      child: getLoginScreenBody(),
-                    ),
-                    if (value) getScreenLoaderWidget(),
-                  ],
-                );
-              }),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
+          ),
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            child: ValueListenableBuilder(
+                valueListenable: isLoadingNotifier,
+                builder: (context, value, _) {
+                  return Stack(
+                    children: [
+                      AbsorbPointer(
+                        absorbing: isLoadingNotifier.value,
+                        child: getLoginScreenBody(),
+                      ),
+                      if (value) getScreenLoaderWidget(),
+                    ],
+                  );
+                }),
+          ),
         ),
       ),
     );

@@ -50,10 +50,21 @@ final class AppBody extends StatelessWidget {
           Expanded(
             child: SizedBox(
               width: getWidthOfScreen(context),
-              child: Card(
-                color: Colors.white,
-                elevation: 10,
-                shadowColor: Colors.black54,
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: body,
               ),
             ),
