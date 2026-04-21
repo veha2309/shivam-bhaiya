@@ -1,0 +1,2 @@
+/Users/warmac/Documents/GitHub/school_app/android/app/.cxx/RelWithDebInfo/135v1a24/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/warmac/Documents/GitHub/school_app/android/app/.cxx/RelWithDebInfo/135v1a24/armeabi-v7a/CMakeFiles/rebuild_cache.dir
