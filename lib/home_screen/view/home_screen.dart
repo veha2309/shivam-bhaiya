@@ -162,6 +162,23 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverToBoxAdapter(
           child: UserHeaderWidget(user: loggedInUser, homeModel: homeModel),
         ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        
+        // 1. Transport Tracker Hero (Always at the top)
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          sliver: SliverToBoxAdapter(child: _buildTransportHero()),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        
+        // 2. Quick Info Tiles
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          sliver: SliverToBoxAdapter(child: _buildQuickInfoTiles()),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        
+        // 3. Context Controls (Switch)
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           sliver: SliverToBoxAdapter(
@@ -180,224 +197,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- DASHBOARD SLIVERS ---
   List<Widget> _buildDashboardSlivers() {
-    final dummyData = _getDummyDataForDate(_selectedDate);
-
     return [
-      // 1. Interactive Date Selector
+      // Context Control - Date Selector
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(
-          child: _buildDateSelector(),
-        ),
+        sliver: SliverToBoxAdapter(child: _buildCompactDateSelector()),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-      // 2. Homework Tile
+      // Student Overview Card
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(
-          child: _buildLargeTile(
-            title: 'Homework',
-            subtitle: 'Current assignments for selected date',
-            icon: Icons.menu_book_rounded,
-            headerColor: Colors.blueAccent,
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(dummyData['homework']['subject'], style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 6),
-                Text(
-                  dummyData['homework']['task'],
-                  style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, height: 1.3),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Due: ${dummyData['homework']['dueDate']}', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
-                    _buildStatusBadge(dummyData['homework']['status'], Colors.orange),
-                  ],
-                )
-              ],
-            ),
-          ),
-        ),
+        sliver: SliverToBoxAdapter(child: _buildStudentOverviewCard()),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-      // 3. Examination/Test Tile
+      // Mid-Level Info Cards (Attendance & Info)
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(
-          child: _buildLargeTile(
-            title: 'Examination / Test',
-            subtitle: 'Upcoming assessments & schedules',
-            icon: Icons.assignment_rounded,
-            headerColor: Colors.redAccent,
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(dummyData['examination']['title'], style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time_rounded, size: 18, color: AppColors.onSurfaceVariant),
-                    const SizedBox(width: 8),
-                    Text(dummyData['examination']['time'], style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, size: 18, color: AppColors.onSurfaceVariant),
-                    const SizedBox(width: 8),
-                    Text(dummyData['examination']['location'], style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
+        sliver: SliverToBoxAdapter(child: _buildMidLevelCards()),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-      // 4. Monthly Tracker Tile
+      // Fee Details Section
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(
-          child: _buildLargeTile(
-            title: 'Monthly Tracker',
-            subtitle: 'Visual overview of your progress',
-            icon: Icons.insert_chart_rounded,
-            headerColor: Colors.teal,
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildProgressBar(
-                  label: 'Attendance',
-                  valueText: '${dummyData['tracker']['attendance']}%',
-                  progress: dummyData['tracker']['attendance'] / 100,
-                  color: Colors.teal,
-                ),
-                const SizedBox(height: 16),
-                _buildProgressBar(
-                  label: 'Assignments Completed',
-                  valueText: '${dummyData['tracker']['assignmentsCompleted']} / ${dummyData['tracker']['totalAssignments']}',
-                  progress: dummyData['tracker']['assignmentsCompleted'] / dummyData['tracker']['totalAssignments'],
-                  color: Colors.blueAccent,
-                ),
-              ],
-            ),
-          ),
-        ),
+        sliver: SliverToBoxAdapter(child: _buildFeeDetailsCard()),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-      // 5. Fee Summary Tile
+      // Daily Update Feed
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(
-          child: _buildLargeTile(
-            title: 'Fee Summary',
-            subtitle: 'Current financial status & dues',
-            icon: Icons.account_balance_wallet_rounded,
-            headerColor: Colors.purpleAccent,
-            content: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Outstanding Balance', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        const SizedBox(height: 4),
-                        Text(dummyData['fee']['totalDue'], style: GoogleFonts.plusJakartaSans(fontSize: 24, fontWeight: FontWeight.w900)),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Due: ${dummyData['fee']['dueDate']}', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                        const SizedBox(height: 8),
-                        _buildStatusBadge(dummyData['fee']['status'], Colors.redAccent),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      // Connect to your payment screen or logic here
-                    },
-                    child: Text('Pay Now', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 32)),
-
-      // 6. Quick Navigation Section
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(
-          child: Text(
-            'Quick Navigation',
-            style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
-          ),
-        ),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-      // 7. Redesigned Prominent Tiles Grid
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 0.85, // Optimized ratio for taller tiles with subtitles
-          ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final navItems = [
-                {'title': 'Academics', 'sub': 'Grades & Subjects', 'icon': Icons.school_rounded, 'color': Colors.indigo},
-                {'title': 'Timetable', 'sub': 'Classes & Schedule', 'icon': Icons.calendar_today_rounded, 'color': Colors.green},
-                {'title': 'Library', 'sub': 'Books & History', 'icon': Icons.local_library_rounded, 'color': Colors.brown},
-                {'title': 'Transport', 'sub': 'Routes & Tracking', 'icon': Icons.directions_bus_rounded, 'color': Colors.deepOrange},
-              ];
-              final item = navItems[index];
-              return _buildMenuTile(
-                title: item['title'] as String,
-                subtitleWidget: Text(
-                  item['sub'] as String,
-                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                icon: item['icon'] as IconData,
-                accentColor: item['color'] as Color,
-                onTap: () {
-                  // Connect to your existing routing logic
-                },
-              );
-            },
-            childCount: 4,
-          ),
-        ),
+        sliver: SliverToBoxAdapter(child: _buildDailyUpdateFeedCard()),
       ),
     ];
   }
@@ -553,124 +385,440 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- DASHBOARD HELPER WIDGETS ---
 
-  Widget _buildDateSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppRadius.xlRadius,
-        boxShadow: AppShadows.soft,
-        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildTransportHero() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Transport Tracker', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurface)),
+        const SizedBox(height: 12),
+        Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerHigh,
+            borderRadius: AppRadius.xlRadius,
+            border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+          ),
+          child: Stack(
             children: [
-              Text('Selected Date', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(
-                DateFormat('EEEE, MMMM dd, yyyy').format(_selectedDate),
-                style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: GridPainter(color: AppColors.outlineVariant.withOpacity(0.3)),
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.soft,
+                      ),
+                      child: const Icon(Icons.directions_bus_rounded, color: Colors.blueAccent, size: 32),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text('Live Location', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: AppShadows.soft,
+                  ),
+                  child: Text('Map', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant)),
+                ),
               ),
             ],
           ),
-          InkWell(
-            onTap: () => _selectDate(context),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildLargeTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color headerColor,
-    required Widget content,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppRadius.xlRadius,
-        boxShadow: AppShadows.soft,
-        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
+  Widget _buildQuickInfoTiles() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: headerColor.withOpacity(0.08),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              color: Colors.redAccent.withOpacity(0.1),
+              borderRadius: AppRadius.lgRadius,
+              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
             ),
             child: Row(
               children: [
-                Icon(icon, color: headerColor, size: 24),
-                const SizedBox(width: 12),
+                const Icon(Icons.play_circle_fill_rounded, color: Colors.redAccent, size: 24),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: GoogleFonts.plusJakartaSans(color: headerColor, fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 2),
-                      Text(subtitle, style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 12)),
+                      Text('Live Stream', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                      Text('Announcements', style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant), overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: content,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blueAccent.withOpacity(0.1),
+              borderRadius: AppRadius.lgRadius,
+              border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.history_rounded, color: Colors.blueAccent, size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Today History', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                      Text('Route logs', style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant), overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactDateSelector() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Dashboard',
+          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
+        ),
+        InkWell(
+          onTap: () => _selectDate(context),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
+              boxShadow: AppShadows.soft,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  DateFormat('dd MMM yyyy').format(_selectedDate),
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStudentOverviewCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.xlRadius,
+        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_rounded, size: 32, color: AppColors.primary),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Krish', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Class: XII-A', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Text('Status: Present', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProgressBar({
-    required String label,
-    required String valueText,
-    required double progress,
-    required Color color,
-  }) {
-    return Column(
+  Widget _buildMidLevelCards() {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-            Text(valueText, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          ],
+        // Attendance Card
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: AppRadius.xlRadius,
+              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
+              boxShadow: AppShadows.soft,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Attendance', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.surfaceContainerHigh, borderRadius: BorderRadius.circular(4)),
+                      child: Text('Weekly', style: GoogleFonts.inter(fontSize: 9, color: AppColors.onSurfaceVariant)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 70,
+                      height: 70,
+                      child: CircularProgressIndicator(
+                        value: 0.92,
+                        strokeWidth: 6,
+                        backgroundColor: Colors.teal.withOpacity(0.1),
+                        color: Colors.teal,
+                      ),
+                    ),
+                    Text('92%', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text('On track!', style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: AppColors.outlineVariant.withOpacity(0.3),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+        const SizedBox(width: 16),
+        // Information Card
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: AppRadius.xlRadius,
+              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
+              boxShadow: AppShadows.soft,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Notices', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Icon(Icons.circle, size: 6, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text('Annual Science Fair registration open.', style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Icon(Icons.circle, size: 6, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text('Holiday on 25th April.', style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 28,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {},
+                    child: Text('View All', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFeeDetailsCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.xlRadius,
+        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purpleAccent.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.purpleAccent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text('Fee Details', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Outstanding Amount', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                  const SizedBox(height: 4),
+                  Text('₹ 12,500', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.onSurface)),
+                ],
+              ),
+              Row(
+                children: [
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {},
+                    child: Text('Detail', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {},
+                    child: Text('Pay', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyUpdateFeedCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.05),
+        borderRadius: AppRadius.xlRadius,
+        border: Border.all(color: Colors.amber.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.campaign_rounded, color: Colors.amber, size: 20),
+              const SizedBox(width: 8),
+              Text('Daily Update Feed', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber[800])),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sports day practice will commence at 3:00 PM today on the main ground. Please ensure you are in complete sports uniform.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurface, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildDot(true),
+              const SizedBox(width: 4),
+              _buildDot(false),
+              const SizedBox(width: 4),
+              _buildDot(false),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDot(bool isActive) {
+    return Container(
+      width: isActive ? 16 : 6,
+      height: 6,
+      decoration: BoxDecoration(
+        color: isActive ? Colors.amber : Colors.amber.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(3),
+      ),
     );
   }
 
@@ -748,6 +896,29 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+// Custom painter to draw the map background grid on the transport module.
+class GridPainter extends CustomPainter {
+  final Color color;
+  GridPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    const spacing = 20.0;
+    for (double i = 0; i < size.width; i += spacing) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+    for (double i = 0; i < size.height; i += spacing) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // --- SWITCH COMPONENTS ---
