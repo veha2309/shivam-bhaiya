@@ -1,27 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart'; // Added for date formatting
+import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
-// Your existing imports
-import 'package:school_app/attendance_screen/view/attendance_dashboard_screen.dart';
+// Component Imports
+import 'package:school_app/home_screen/view/components/category_tabs.dart';
+import 'package:school_app/home_screen/view/components/dashboard_hero.dart';
+import 'package:school_app/home_screen/view/components/dashboard_utils.dart';
+import 'package:school_app/home_screen/view/components/hud_background.dart';
+import 'package:school_app/home_screen/view/components/view_switch.dart';
+import 'package:school_app/home_screen/view/components/transport_tracker.dart';
+import 'package:school_app/home_screen/view/components/student_overview_card.dart';
+import 'package:school_app/home_screen/view/components/mid_level_cards.dart';
+import 'package:school_app/home_screen/view/components/fee_details_card.dart';
+import 'package:school_app/home_screen/view/components/daily_update_feed.dart';
+import 'package:school_app/home_screen/view/components/quick_info_tile.dart';
+import 'package:school_app/home_screen/view/components/menu_tile.dart';
+
+// ViewModel and Model Imports
 import 'package:school_app/auth/model/user.dart';
 import 'package:school_app/auth/view_model/auth.dart';
 import 'package:school_app/home_screen/model/home.dart';
 import 'package:school_app/home_screen/model/home_screen_utils.dart';
-import 'package:school_app/home_screen/view/components/category_tabs.dart';
-import 'package:school_app/home_screen/view/components/dashboard_hero.dart';
-import 'package:school_app/home_screen/view/components/stats_row.dart';
 import 'package:school_app/home_screen/view_model/home_viewmodel.dart';
 import 'package:school_app/network_manager/api_response.dart';
 import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/utils/components/app_future_builder.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
-import 'package:school_app/utils/components/calendar_strip.dart';
-import 'package:school_app/utils/components/components.dart';
 import 'package:school_app/utils/components/no_data_widget.dart';
-import 'package:school_app/utils/components/square_grid_component.dart';
 import 'package:school_app/utils/language_provider.dart';
 import 'package:school_app/utils/utils.dart';
 
@@ -43,6 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- Dashboard State ---
   DateTime _selectedDate = DateTime.now();
+  bool _hasLocationPermission = false;
+  bool _checkingLocationPermission = true;
 
   @override
   void initState() {
@@ -51,6 +61,31 @@ class _HomeScreenState extends State<HomeScreen> {
       loggedInUser = AuthViewModel.instance.getLoggedInUser();
       _loadHomeData();
     } catch (_) {}
+    _initLocationPermissionCheck();
+  }
+
+  Future<void> _initLocationPermissionCheck() async {
+    final status = await Permission.locationWhenInUse.status;
+    if (mounted) {
+      setState(() {
+        _hasLocationPermission = status.isGranted;
+        _checkingLocationPermission = false;
+      });
+    }
+  }
+
+  Future<void> _requestLocationPermission() async {
+    var status = await Permission.locationWhenInUse.status;
+    if (status.isPermanentlyDenied) {
+      openAppSettings();
+      return;
+    }
+    status = await Permission.locationWhenInUse.request();
+    if (mounted) {
+      setState(() {
+        _hasLocationPermission = status.isGranted;
+      });
+    }
   }
 
   void _loadHomeData() {
@@ -67,35 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return response;
     });
-  }
-
-  // --- Dummy Data Generator for Dashboard ---
-  Map<String, dynamic> _getDummyDataForDate(DateTime date) {
-    String formattedDate = DateFormat('MMM dd, yyyy').format(date);
-    return {
-      'homework': {
-        'subject': 'Mathematics',
-        'task': 'Complete chapters 4 & 5 exercises. Submit via portal.',
-        'status': 'Pending',
-        'dueDate': formattedDate,
-      },
-      'examination': {
-        'title': 'Mid-Term Physics Exam',
-        'time': '10:00 AM - 12:30 PM',
-        'location': 'Room 302',
-        'date': formattedDate,
-      },
-      'tracker': {
-        'attendance': 85.0,
-        'assignmentsCompleted': 12,
-        'totalAssignments': 15,
-      },
-      'fee': {
-        'totalDue': '₹ 12,450',
-        'dueDate': 'May 15, 2026',
-        'status': 'Unpaid',
-      }
-    };
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -147,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (homeModel?.menuDetails?.isEmpty ?? true) {
                 return const NoDataWidget();
               }
-              return _buildMainContent();
+              return SophisticatedHUDBackground(child: _buildMainContent());
             },
           ),
         ),
@@ -159,82 +165,89 @@ class _HomeScreenState extends State<HomeScreen> {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        SliverToBoxAdapter(
-          child: UserHeaderWidget(user: loggedInUser, homeModel: homeModel),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        
-        // 1. Transport Tracker Hero (Always at the top)
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          sliver: SliverToBoxAdapter(child: _buildTransportHero()),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 16, AppSpacing.lg, 16),
+          sliver: SliverToBoxAdapter(child: _buildDashboardNavigationStrip()),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        
-        // 2. Quick Info Tiles
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          sliver: SliverToBoxAdapter(child: _buildQuickInfoTiles()),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        
-        // 3. Context Controls (Switch)
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          sliver: SliverToBoxAdapter(
-            child: _ViewSwitch(
-              isDashboard: _isDashboard,
-              onChanged: (val) => setState(() => _isDashboard = val),
+
+        if (_isDashboard) ...[
+          // 2. Student Overview Card
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            sliver: SliverToBoxAdapter(
+              child: StudentOverviewCard(
+                name: 'Krish',
+                className: 'XII-A',
+                status: 'Present',
+                avatarUrl: 'https://i.pravatar.cc/150?u=krish',
+              ),
             ),
           ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        if (_isDashboard) ..._buildDashboardSlivers() else ..._buildHomeSlivers(),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+          // 3. Transport Tracker
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            sliver: SliverToBoxAdapter(
+              child: RepaintBoundary(
+                child: TransportTrackerWidget(
+                  hasPermission: _hasLocationPermission,
+                  checkingPermission: _checkingLocationPermission,
+                  onRequestPermission: _requestLocationPermission,
+                ),
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+          // 4. Attendance & Information
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            sliver: SliverToBoxAdapter(
+              child: MidLevelCards(
+                informationPoints: const [
+                  'Science Fair registration open.',
+                  'Holiday on 25th April.',
+                  'Uniform check tomorrow.'
+                ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+          // 5. Fee Details Section
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            sliver: SliverToBoxAdapter(
+              child: FeeDetailsCard(
+                amountDue: '₹ 2,500',
+                onPay: () {},
+                onDetail: () {},
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+          // 6. Daily Update Section
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            sliver: SliverToBoxAdapter(child: const DailyUpdateFeedWidget()),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+          // 7. Quick Access Tiles
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            sliver: SliverToBoxAdapter(child: _buildQuickInfoTiles()),
+          ),
+        ] else
+          ..._buildHomeSlivers(),
+
         const SliverToBoxAdapter(child: SizedBox(height: 40)),
       ],
     );
   }
 
-  // --- DASHBOARD SLIVERS ---
-  List<Widget> _buildDashboardSlivers() {
-    return [
-      // Context Control - Date Selector
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(child: _buildCompactDateSelector()),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-      // Student Overview Card
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(child: _buildStudentOverviewCard()),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-      // Mid-Level Info Cards (Attendance & Info)
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(child: _buildMidLevelCards()),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-      // Fee Details Section
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(child: _buildFeeDetailsCard()),
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-      // Daily Update Feed
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        sliver: SliverToBoxAdapter(child: _buildDailyUpdateFeedCard()),
-      ),
-    ];
-  }
-
-  // --- HOME SLIVERS ---
   List<Widget> _buildHomeSlivers() {
     final listItems = menuDetailMap['1'] ?? [];
     return [
@@ -251,18 +264,19 @@ class _HomeScreenState extends State<HomeScreen> {
       const SliverToBoxAdapter(child: SizedBox(height: 24)),
       const SliverToBoxAdapter(child: CategoryTabs()),
       const SliverToBoxAdapter(child: SizedBox(height: 24)),
-      
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         sliver: SliverToBoxAdapter(
           child: Text(
             'Explore Menu',
-            style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
+            style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface),
           ),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: 16)),
-      
       if (listItems.isNotEmpty)
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -271,9 +285,10 @@ class _HomeScreenState extends State<HomeScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, i) {
               final m = listItems[i];
-              final title = context.read<LanguageProvider>().translate(m.menuName ?? '');
+              final title =
+                  context.read<LanguageProvider>().translate(m.menuName ?? '');
 
-              return _buildMenuTile(
+              return MenuTile(
                 title: title,
                 subtitleWidget: _getSubtitleWidgetForMenu(title),
                 icon: getMenuIcon(m),
@@ -305,7 +320,14 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Text(actionText, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+              Flexible(
+                child: Text(
+                  actionText, 
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               const SizedBox(width: 4),
               const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
             ],
@@ -383,68 +405,46 @@ class _HomeScreenState extends State<HomeScreen> {
     return colors[index % colors.length];
   }
 
-  // --- DASHBOARD HELPER WIDGETS ---
-
-  Widget _buildTransportHero() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildDashboardNavigationStrip() {
+    return Row(
       children: [
-        Text('Transport Tracker', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurface)),
-        const SizedBox(height: 12),
-        Container(
-          height: 200,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerHigh,
-            borderRadius: AppRadius.xlRadius,
-            border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+        Expanded(
+          flex: 6,
+          child: ViewSwitch(
+            isDashboard: _isDashboard,
+            onChanged: (val) => setState(() => _isDashboard = val),
           ),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: GridPainter(color: AppColors.outlineVariant.withOpacity(0.3)),
-                ),
-              ),
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.soft,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 4,
+          child: InkWell(
+            onTap: () => _selectDate(context),
+            borderRadius: DashboardUtils.futuristicRadius,
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: DashboardUtils.futuristicDecoration(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      DateFormat('dd MMM yyyy').format(_selectedDate),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
                       ),
-                      child: const Icon(Icons.directions_bus_rounded, color: Colors.blueAccent, size: 32),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blueAccent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text('Live Location', style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                right: 12,
-                top: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: AppShadows.soft,
                   ),
-                  child: Text('Map', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.onSurfaceVariant)),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ],
@@ -455,539 +455,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.redAccent.withOpacity(0.1),
-              borderRadius: AppRadius.lgRadius,
-              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.play_circle_fill_rounded, color: Colors.redAccent, size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Live Stream', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent)),
-                      Text('Announcements', style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant), overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blueAccent.withOpacity(0.1),
-              borderRadius: AppRadius.lgRadius,
-              border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.history_rounded, color: Colors.blueAccent, size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Today History', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-                      Text('Route logs', style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant), overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCompactDateSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Dashboard',
-          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
-        ),
-        InkWell(
-          onTap: () => _selectDate(context),
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-              boxShadow: AppShadows.soft,
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.primary),
-                const SizedBox(width: 6),
-                Text(
-                  DateFormat('dd MMM yyyy').format(_selectedDate),
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStudentOverviewCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppRadius.xlRadius,
-        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.person_rounded, size: 32, color: AppColors.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Krish', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text('Class: XII-A', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
-                  ),
-                  child: Text('Status: Present', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMidLevelCards() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Attendance Card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: AppRadius.xlRadius,
-              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-              boxShadow: AppShadows.soft,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Attendance', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AppColors.surfaceContainerHigh, borderRadius: BorderRadius.circular(4)),
-                      child: Text('Weekly', style: GoogleFonts.inter(fontSize: 9, color: AppColors.onSurfaceVariant)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 70,
-                      height: 70,
-                      child: CircularProgressIndicator(
-                        value: 0.92,
-                        strokeWidth: 6,
-                        backgroundColor: Colors.teal.withOpacity(0.1),
-                        color: Colors.teal,
-                      ),
-                    ),
-                    Text('92%', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text('On track!', style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
-              ],
-            ),
+          child: QuickInfoTile(
+            title: 'YouTube Video',
+            subtitle: 'Latest School Event',
+            icon: Icons.play_circle_fill_rounded,
+            color: const Color(0xFFFF0000),
+            onTap: () {},
           ),
         ),
         const SizedBox(width: 16),
-        // Information Card
         Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: AppRadius.xlRadius,
-              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-              boxShadow: AppShadows.soft,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Notices', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Icon(Icons.circle, size: 6, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('Annual Science Fair registration open.', style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Icon(Icons.circle, size: 6, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('Holiday on 25th April.', style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 28,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {},
-                    child: Text('View All', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  ),
-                ),
-              ],
-            ),
+          child: QuickInfoTile(
+            title: 'Today History',
+            subtitle: 'Academic logs',
+            icon: Icons.history_rounded,
+            color: const Color(0xFF2196F3),
+            onTap: () {},
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFeeDetailsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppRadius.xlRadius,
-        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.purpleAccent.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.purpleAccent, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text('Fee Details', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Outstanding Amount', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                  const SizedBox(height: 4),
-                  Text('₹ 12,500', style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.onSurface)),
-                ],
-              ),
-              Row(
-                children: [
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {},
-                    child: Text('Detail', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {},
-                    child: Text('Pay', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDailyUpdateFeedCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.05),
-        borderRadius: AppRadius.xlRadius,
-        border: Border.all(color: Colors.amber.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.campaign_rounded, color: Colors.amber, size: 20),
-              const SizedBox(width: 8),
-              Text('Daily Update Feed', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber[800])),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Sports day practice will commence at 3:00 PM today on the main ground. Please ensure you are in complete sports uniform.',
-            style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurface, height: 1.4),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildDot(true),
-              const SizedBox(width: 4),
-              _buildDot(false),
-              const SizedBox(width: 4),
-              _buildDot(false),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDot(bool isActive) {
-    return Container(
-      width: isActive ? 16 : 6,
-      height: 6,
-      decoration: BoxDecoration(
-        color: isActive ? Colors.amber : Colors.amber.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
-  }
-
-  // Improved Menu Tile Component
-  Widget _buildMenuTile({
-    required String title,
-    required Widget subtitleWidget,
-    required dynamic icon,
-    required Color accentColor,
-    required VoidCallback onTap,
-  }) {
-    Widget iconWidget;
-    if (icon is IconData) {
-      iconWidget = Icon(icon, color: accentColor, size: 28);
-    } else if (icon is String && icon.isNotEmpty) {
-      // The icon is an asset path string. Added errorBuilder for missing assets.
-      iconWidget = Image.asset(
-        icon, 
-        width: 28, 
-        height: 28,
-        errorBuilder: (context, error, stackTrace) {
-          IconData fallbackIcon = title.toLowerCase().contains('fee') ? Icons.payment_rounded : Icons.category_rounded;
-          return Icon(fallbackIcon, color: accentColor, size: 28);
-        },
-      );
-    } else {
-      // Fallback for safety in case of unexpected type or empty string.
-      iconWidget = Icon(Icons.category_rounded, color: accentColor, size: 28);
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppRadius.xlRadius,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: AppRadius.xlRadius,
-          border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
-          boxShadow: AppShadows.soft,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: iconWidget,
-            ),
-            const SizedBox(height: 16),
-            Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            subtitleWidget,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(color: color, fontWeight: FontWeight.bold, fontSize: 12),
-      ),
-    );
-  }
-}
-
-// Custom painter to draw the map background grid on the transport module.
-class GridPainter extends CustomPainter {
-  final Color color;
-  GridPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-    const spacing = 20.0;
-    for (double i = 0; i < size.width; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i < size.height; i += spacing) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// --- SWITCH COMPONENTS ---
-
-class _ViewSwitch extends StatelessWidget {
-  final bool isDashboard;
-  final ValueChanged<bool> onChanged;
-
-  const _ViewSwitch({required this.isDashboard, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerHigh,
-        borderRadius: AppRadius.fullRadius,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SwitchItem(
-              label: 'Home',
-              isActive: !isDashboard,
-              onTap: () => onChanged(false),
-            ),
-          ),
-          Expanded(
-            child: _SwitchItem(
-              label: 'Dashboard',
-              isActive: isDashboard,
-              onTap: () => onChanged(true),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SwitchItem extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _SwitchItem({required this.label, required this.isActive, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : Colors.transparent,
-          borderRadius: AppRadius.fullRadius,
-          boxShadow: isActive ? AppShadows.soft : null,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: isActive ? Colors.white : AppColors.onSurfaceVariant,
-          ),
-        ),
-      ),
     );
   }
 }

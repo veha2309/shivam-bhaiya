@@ -158,7 +158,7 @@ class _AppBarActions extends StatelessWidget {
             icon: Icons.home_rounded,
             onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
           ),
-        if (!showBackButton)
+        if (!showBackButton) ...[
           _ActionButton(
             icon: Icons.notifications_none_rounded, // Use outline for modern feel
             onTap: () => Navigator.of(context).push(
@@ -167,6 +167,14 @@ class _AppBarActions extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          _ActionButton(
+            icon: Icons.person_outline_rounded,
+            onTap: () {
+              // Navigate to profile or show quick profile
+            },
+          ),
+        ],
       ],
     );
   }
