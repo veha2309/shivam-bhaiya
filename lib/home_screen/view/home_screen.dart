@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+<<<<<<< Updated upstream
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart'; // Added for date formatting
+=======
+import 'package:intl/intl.dart';
+>>>>>>> Stashed changes
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:school_app/home_screen/model/home_screen_utils.dart';
 
+<<<<<<< Updated upstream
 // Your existing imports
 import 'package:school_app/attendance_screen/view/attendance_dashboard_screen.dart';
 import 'package:school_app/auth/model/user.dart';
@@ -13,10 +20,20 @@ import 'package:school_app/home_screen/model/home_screen_utils.dart';
 import 'package:school_app/home_screen/view/components/category_tabs.dart';
 import 'package:school_app/home_screen/view/components/dashboard_hero.dart';
 import 'package:school_app/home_screen/view/components/stats_row.dart';
+=======
+// Component Imports
+import 'package:school_app/home_screen/view/dashboard_view.dart';
+import 'package:school_app/home_screen/view/components/hud_background.dart';
+import 'package:school_app/home_screen/view/components/view_switch.dart';
+import 'package:school_app/home_screen/view/components/home_overview.dart';
+import 'package:school_app/home_screen/view/components/dashboard_utils.dart';
+
+// ViewModel and Model Imports
+import 'package:school_app/home_screen/model/home.dart';
+>>>>>>> Stashed changes
 import 'package:school_app/home_screen/view_model/home_viewmodel.dart';
-import 'package:school_app/network_manager/api_response.dart';
+import 'package:school_app/home_screen/view_model/dashboard_viewmodel.dart';
 import 'package:school_app/utils/app_theme.dart';
-import 'package:school_app/utils/components/app_future_builder.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
 import 'package:school_app/utils/components/calendar_strip.dart';
 import 'package:school_app/utils/components/components.dart';
@@ -34,6 +51,7 @@ final class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+<<<<<<< Updated upstream
   User? loggedInUser;
   Future<ApiResponse<HomeModel>>? homeDetail;
   final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
@@ -174,10 +192,51 @@ class _HomeScreenState extends State<HomeScreen> {
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
         if (_isDashboard) ..._buildDashboardSlivers() else ..._buildHomeSlivers(),
         const SliverToBoxAdapter(child: SizedBox(height: 40)),
+=======
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HomeViewmodel.instance.fetchHomeDetail();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: HomeViewmodel.instance),
+        ChangeNotifierProvider(create: (_) => DashboardViewModel()),
+>>>>>>> Stashed changes
       ],
+      child: Consumer2<HomeViewmodel, DashboardViewModel>(
+        builder: (context, homeVm, dashVm, child) {
+          return WillPopScope(
+            onWillPop: () async {
+              if (dashVm.isDashboard) {
+                dashVm.toggleView(false);
+                return false;
+              }
+              SystemNavigator.pop();
+              return true;
+            },
+            child: AppScaffold(
+              isLoadingNotifier: ValueNotifier(homeVm.isLoading),
+              showBackButton: false,
+              showAppBar: true,
+              body: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () => homeVm.fetchHomeDetail(),
+                child: _buildBody(context, homeVm, dashVm),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
+<<<<<<< Updated upstream
   // --- DASHBOARD SLIVERS ---
   List<Widget> _buildDashboardSlivers() {
     final dummyData = _getDummyDataForDate(_selectedDate);
@@ -478,65 +537,45 @@ class _HomeScreenState extends State<HomeScreen> {
               const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
             ],
           ),
+=======
+  Widget _buildBody(BuildContext context, HomeViewmodel homeVm, DashboardViewModel dashVm) {
+    context.watch<LanguageProvider>();
+    
+    if (homeVm.homeModel == null && !homeVm.isLoading) {
+      return const NoDataWidget();
+    }
+
+    return SophisticatedHUDBackground(
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 16, AppSpacing.lg, 16),
+            sliver: SliverToBoxAdapter(
+              child: _buildNavigationStrip(context, dashVm),
+            ),
+          ),
+          if (dashVm.isDashboard)
+            const SliverToBoxAdapter(child: DashboardView())
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverToBoxAdapter(
+                child: HomeOverview(
+                  homeModel: homeVm.homeModel,
+                  menuDetails: homeVm.homeModel?.menuDetails ?? const [],
+                  onNavigate: (m) => _navigate(context, m),
+                ),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+>>>>>>> Stashed changes
         ],
-      );
-    }
-
-    if (lowerTitle.contains('norms') || lowerTitle.contains('violation')) {
-      return buildRichSubtitle('Latest: Bullying in corridor', 'Incident reported on April 18, 2026. Status is currently Under Review.', 'View Incident Report');
-    }
-    if (lowerTitle.contains('time') && lowerTitle.contains('table')) {
-      return buildRichSubtitle("Today's Schedule:", '10:00 AM - Maths (Room 301)\n11:00 AM - Physics (Lab 2)', 'View Full Schedule');
-    }
-    if (lowerTitle.contains('academic')) {
-      return buildRichSubtitle('Current Term: 2025-26', 'Guidelines & Rules active for this session. Please review the updated policy.', 'View Guidelines');
-    }
-    if (lowerTitle.contains('fee')) {
-      return buildRichSubtitle('Outstanding Due: ₹ 12,450', 'Next Payment Date: May 15, 2026. Late fees may apply after due date.', 'Proceed to Payment');
-    }
-    if (lowerTitle.contains('progress') || lowerTitle.contains('report')) {
-      return buildRichSubtitle('Latest: Term 1 Results', 'Overall Grade: A. Class Rank: 4th. Teacher remarks available.', 'View Report Card');
-    }
-    if (lowerTitle.contains('document')) {
-      return buildRichSubtitle('2 New Documents', 'Your signature is required on the recent consent forms for the upcoming trip.', 'View Documents');
-    }
-    if (lowerTitle.contains('attendance')) {
-      return buildRichSubtitle('This Month: 85%', '3 Absences recorded. 1 pending leave request is awaiting approval.', 'View Calendar');
-    }
-    if (lowerTitle.contains('homework') || lowerTitle.contains('assignment')) {
-      return buildRichSubtitle('2 Pending Tasks', 'Due tomorrow: Mathematics Exercise 4 and Science Project Draft.', 'View Assignments');
-    }
-    if (lowerTitle.contains('notice') || lowerTitle.contains('circular')) {
-      return buildRichSubtitle('Unread: 1 New Notice', 'Annual Sports Day schedule announced. Please check uniform requirements.', 'View Notice Board');
-    }
-    if (lowerTitle.contains('profile')) {
-      return buildRichSubtitle('Profile: 90% Complete', 'Please update your emergency contact info and blood group details.', 'Edit Profile');
-    }
-    if (lowerTitle.contains('transport')) {
-      return buildRichSubtitle('Route 4 (Morning)', 'Bus is currently 5 mins away from your stop. Driver: Mr. Sharma.', 'Track Vehicle');
-    }
-    if (lowerTitle.contains('library')) {
-      return buildRichSubtitle('1 Book Overdue', 'Physics Vol 2. Please return to the library immediately to avoid fines.', 'View Issued Books');
-    }
-    if (lowerTitle.contains('leave')) {
-      return buildRichSubtitle('Recent: Approved', 'Sick leave (April 10 - April 12). You have 4 casual leaves remaining.', 'Apply for Leave');
-    }
-    if (lowerTitle.contains('syllabus')) {
-      return buildRichSubtitle('Mathematics', 'Chapter 4 currently in progress. Next week: Chapter 5 Introduction.', 'View Complete Syllabus');
-    }
-    if (lowerTitle.contains('calendar')) {
-      return buildRichSubtitle('Next Event: Science Fair', 'This Friday at 10:00 AM in the Main Hall. Parents are invited.', 'View Yearly Calendar');
-    }
-    if (lowerTitle.contains('gallery')) {
-      return buildRichSubtitle('New Album Added', 'Spring Festival 2026. 45 new photos and 2 videos have been uploaded.', 'View Media');
-    }
-    if (lowerTitle.contains('feedback')) {
-      return buildRichSubtitle('1 Response Received', 'Admin replied to your last inquiry regarding the transport facility.', 'View Responses');
-    }
-
-    return buildRichSubtitle('Details & Info', 'Tap to view more information regarding this section.', 'Explore Details');
+      ),
+    );
   }
 
+<<<<<<< Updated upstream
   Color _getColorForMenu(int index) {
     final colors = [
       Colors.indigo,
@@ -573,6 +612,46 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 DateFormat('EEEE, MMMM dd, yyyy').format(_selectedDate),
                 style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
+=======
+  Widget _buildNavigationStrip(BuildContext context, DashboardViewModel dashVm) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 6,
+          child: ViewSwitch(
+            isDashboard: dashVm.isDashboard,
+            onChanged: (val) => dashVm.toggleView(val),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 4,
+          child: InkWell(
+            onTap: () => _selectDate(context, dashVm),
+            borderRadius: DashboardUtils.futuristicRadius,
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: DashboardUtils.futuristicDecoration(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      DateFormat('dd MMM yyyy').format(dashVm.selectedDate),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+>>>>>>> Stashed changes
               ),
             ],
           ),
@@ -674,6 +753,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+<<<<<<< Updated upstream
   // Improved Menu Tile Component
   Widget _buildMenuTile({
     required String title,
@@ -746,7 +826,31 @@ class _HomeScreenState extends State<HomeScreen> {
         text,
         style: GoogleFonts.inter(color: color, fontWeight: FontWeight.bold, fontSize: 12),
       ),
+=======
+  Future<void> _selectDate(BuildContext context, DashboardViewModel dashVm) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: dashVm.selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(primary: AppColors.primary),
+          ),
+          child: child!,
+        );
+      },
+>>>>>>> Stashed changes
     );
+    if (picked != null) {
+      dashVm.setSelectedDate(picked);
+    }
+  }
+
+  void _navigate(BuildContext context, MenuDetail m) {
+    final dest = navigateToMenuDestination(m, title: m.menuName);
+    if (dest != null) navigateToScreen(context, dest);
   }
 }
 

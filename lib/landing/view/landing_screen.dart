@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:school_app/auth/model/user.dart';
 import 'package:school_app/auth/view/login_screen.dart';
 import 'package:school_app/auth/view_model/auth.dart';
+import 'package:school_app/main_navigation_screen.dart';
 import 'package:school_app/tabbar/tabbar_screen.dart';
 import 'package:school_app/utils/constants.dart';
 import 'package:school_app/utils/utils.dart';
@@ -27,7 +28,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       if (user != null) {
-        navigateToScreen(context, const TabbarScreen(), replace: true);
+        navigateToScreen(context, const MainNavigationScreen(), replace: true);
       } else {
         navigateToScreen(context, const LoginScreen(shouldAllowPop: true),
             replace: true);

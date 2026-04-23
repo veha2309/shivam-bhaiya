@@ -6,18 +6,20 @@ class HomeworkModel {
 
   HomeworkModel({this.homeworkDate, this.homeworkData});
 
-  // Factory constructor to create an instance from JSON
   factory HomeworkModel.fromJson(Map<String, dynamic> json) {
     return HomeworkModel(
-      homeworkDate: json['homeworkDate'],
+      homeworkDate: json['homeworkDate'] as String?,
+      // Fix: Only use jsonDecode if 'homeworkData' is actually a String. 
+      // If the API returns a List directly, remove jsonDecode.
       homeworkData: json['homeworkData'] != null
-          ? (jsonDecode(json['homeworkData']) as List)
-              .map((data) => HomeworkData.fromJson(data))
+          ? (json['homeworkData'] is String 
+              ? jsonDecode(json['homeworkData']) as List 
+              : json['homeworkData'] as List)
+              .map((data) => HomeworkData.fromJson(data as Map<String, dynamic>))
               .toList()
           : null,
     );
   }
-
   // Convert instance to JSON
   Map<String, dynamic> toJson() {
     return {

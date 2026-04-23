@@ -17,6 +17,7 @@ final class AppScaffold extends StatefulWidget {
   final String? studentName;
   final int? currentNavIndex;
   final Function(int)? onNavTap;
+  final Widget? appBarTitle;
 
   const AppScaffold({
     super.key,
@@ -28,6 +29,7 @@ final class AppScaffold extends StatefulWidget {
     this.studentName,
     this.currentNavIndex,
     this.onNavTap,
+    this.appBarTitle,
   });
 
   @override
@@ -60,7 +62,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: AppColors.surface,
-        extendBody: true, // Allows bottom nav to be floating over body
+        extendBody: true,
         resizeToAvoidBottomInset: true,
         drawer: widget.showDrawer ? const AppDrawer() : null,
         appBar: !widget.showAppBar
@@ -70,6 +72,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                 scaffoldKey,
                 showBackButton: widget.showBackButton,
                 studentName: widget.studentName,
+                title: widget.appBarTitle,
               ),
         body: ValueListenableBuilder<bool>(
           valueListenable: isLoadingNotifier,

@@ -16,13 +16,13 @@ PreferredSizeWidget getAppBar(
   GlobalKey<ScaffoldState> scaffoldKey, {
   bool showBackButton = true,
   String? studentName,
+  Widget? title,
 }) {
   final User? loggedInUser = AuthViewModel.instance.getLoggedInUser();
 
   return PreferredSize(
     preferredSize: Size.fromHeight(
-      (loggedInUser?.userType == 'Student' || studentName != null) &&
-              showBackButton
+      (loggedInUser?.userType == 'Student' || studentName != null) && showBackButton
           ? 96
           : 64,
     ),
@@ -57,28 +57,30 @@ PreferredSizeWidget getAppBar(
                           scaffoldKey: scaffoldKey,
                         ),
 
-                        // Logo centered
+                        // Logo centered & acts as Home Button, or Custom Title
                         Expanded(
                           child: Center(
-                            child: Image.asset(
-                              ImageConstants.logoImagePath,
-                              height: 38,
-                              fit: BoxFit.contain,
+                            child: GestureDetector(
+                              onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                              child: title ?? Image.asset(
+                                ImageConstants.logoImagePath,
+                                height: 38,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),
 
-                        // Notification Actions
-                        _AppBarActions(showBackButton: showBackButton),
+                        // Consistent Notification & Profile Actions
+                        const _AppBarActions(),
                       ],
                     ),
                   ),
                 ),
 
-                // Student name subtitle (only on back-button screens)
+                // Student name subtitle restored (only on back-button screens)
                 if (showBackButton &&
-                    (loggedInUser?.userType == 'Student' ||
-                        studentName != null))
+                    (loggedInUser?.userType == 'Student' || studentName != null))
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -137,7 +139,7 @@ class _AppBarLeading extends StatelessWidget {
           child: Icon(
             showBackButton ? CupertinoIcons.chevron_back : Icons.menu_rounded,
             size: 22,
-            color: const Color(0xFF001A1D), // Darkened as requested
+            color: const Color(0xFF001A1D),
           ),
         ),
       ),
@@ -146,13 +148,14 @@ class _AppBarLeading extends StatelessWidget {
 }
 
 class _AppBarActions extends StatelessWidget {
-  final bool showBackButton;
-  const _AppBarActions({required this.showBackButton});
+  const _AppBarActions();
 
   @override
   Widget build(BuildContext context) {
+    // Actions are now consistent across all screens (No more context switching)
     return Row(
       children: [
+<<<<<<< Updated upstream
         if (showBackButton)
           _ActionButton(
             icon: Icons.home_rounded,
@@ -167,6 +170,23 @@ class _AppBarActions extends StatelessWidget {
               ),
             ),
           ),
+=======
+        _ActionButton(
+          icon: Icons.notifications_none_rounded, 
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const NotificationsScreen(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ActionButton(
+          icon: Icons.person_outline_rounded,
+          onTap: () {
+            // Navigate to profile or show quick profile
+          },
+        ),
+>>>>>>> Stashed changes
       ],
     );
   }
@@ -192,7 +212,7 @@ class _ActionButton extends StatelessWidget {
             border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
             boxShadow: AppShadows.soft,
           ),
-          child: Icon(icon, size: 22, color: const Color(0xFF001A1D)), // Darkened as requested
+          child: Icon(icon, size: 22, color: const Color(0xFF001A1D)),
         ),
       ),
     );

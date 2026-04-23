@@ -52,6 +52,7 @@ final class IconConstants {
   static const vQuick = 'assets/icons/V Quick.png'; // Using PNG
   static const verbalViolationMaster = 'assets/icons/Verbal Violation Master.png';
   static const viewDocuments = 'assets/icons/View Documents.png'; // Using PNG
+  static const classWork = 'assets/icons/Curriculam.png';
   static const watchList = 'assets/icons/watch list.png';
   static const feeIcon = 'material:payments';
   static const calendarDotsIcon = 'assets/icons/home_screen/CalendarDots.png';

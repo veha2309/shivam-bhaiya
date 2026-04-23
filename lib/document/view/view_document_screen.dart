@@ -1,347 +1,514 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:school_app/auth/model/user.dart';
 import 'package:school_app/auth/view_model/auth.dart';
 import 'package:school_app/document/model/view_document.dart';
-import 'package:school_app/document/viewmodel/view_document_viewmodel.dart';
-import 'package:school_app/network_manager/api_response.dart';
-import 'package:school_app/school_details/model/class.dart';
-import 'package:school_app/school_details/model/section.dart';
-import 'package:school_app/school_details/viewmodel/school_details_viewmodel.dart';
-import 'package:school_app/utils/components/app_button.dart';
-import 'package:school_app/utils/components/app_future_builder.dart';
-import 'package:school_app/utils/components/app_scaffold.dart';
-import 'package:school_app/utils/components/app_textfield.dart';
-import 'package:school_app/utils/components/body.dart';
-import 'package:school_app/utils/components/bottom_sheet.dart';
-import 'package:school_app/utils/components/no_data_widget.dart';
-import 'package:school_app/utils/constants.dart';
+import 'package:school_app/document/model/view_document.dart';
+import 'package:school_app/document/viewmodel/document_view_model.dart';
+import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/utils/utils.dart';
+import 'package:provider/provider.dart';
 
 class ViewDocumentScreen extends StatefulWidget {
   static const String routeName = '/view-document';
   final String? title;
 
-  const ViewDocumentScreen({
-    super.key,
-    this.title,
-  });
+  const ViewDocumentScreen({super.key, this.title});
 
   @override
   State<ViewDocumentScreen> createState() => _ViewDocumentScreenState();
 }
 
 class _ViewDocumentScreenState extends State<ViewDocumentScreen> {
-  User? user;
-  bool isTeacher = false;
-  ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
-  Future<ApiResponse<List<ClassModel>>>? getClassListFuture;
-  Future<ApiResponse<List<Section>>>? getSectionListFuture;
-  Future<ApiResponse<Map<String, List<Document>>>>? getDocumentListFuture;
-
-  Map<String, List<Document>> documents = {};
-
-  @override
-  void initState() {
-    super.initState();
-    user = AuthViewModel.instance.getLoggedInUser();
-    if (user?.userType != "Teacher") {
-      getDocumentListFuture = ViewDocumentViewModel.instance
-          .getStudentViewDocumentData()
-          .then((ApiResponse<Map<String, List<Document>>> response) {
-        if (response.success) {
-          setState(() {
-            documents = response.data ?? {};
-          });
-        }
-        return response;
-      });
-    } else {
-      isTeacher = true;
-      getClassListFuture = SchoolDetailsViewModel.instance
-          .getClassList()
-          .then((ApiResponse<List<ClassModel>> response) {
-        if (response.success) {
-          classes = response.data ?? [];
-        }
-        return response;
-      });
-    }
-  }
-
-  ClassModel? selectedClass;
-  Section? selectedSection;
-
-  List<ClassModel> classes = [];
-  List<Section> sections = [];
-
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      body: AppBody(
-        title: widget.title ?? "My Documents",
-        body: getUploadDocumentsScreenBody(
-          context,
-        ),
+    return ChangeNotifierProvider(
+      create: (_) => DocumentViewModel(),
+      child: Consumer<DocumentViewModel>(
+        builder: (context, vm, _) {
+          return Scaffold(
+            backgroundColor: AppColors.surface,
+            body: SafeArea(
+              child: vm.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        _buildAppBar(context),
+                        _buildSearchBar(vm),
+                        _buildCategories(vm),
+                        _buildRecentHeader(),
+                        _buildDocumentList(vm),
+                        _buildBottomCta(),
+                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      ],
+                    ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget getUploadDocumentsScreenBody(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: SingleChildScrollView(
-        child: Column(
-          spacing: 16.0,
+  Widget _buildAppBar(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
+        child: Row(
           children: [
-            if (isTeacher)
-              AppTextfield(
-                onTap: () {
-                  openClassBottomSheet(context, classes, (classModel) {
-                    setState(() {
-                      selectedClass = classModel;
-                      selectedSection = null;
-                      getSectionListFuture = SchoolDetailsViewModel.instance
-                          .getSectionList(classModel.classCode)
-                          .then((ApiResponse<List<Section>> response) {
-                        if (response.success) {
-                          sections = response.data ?? [];
-                        }
-                        return response;
-                      });
-                    });
-                  });
-                },
-                enabled: false,
-                hintText: selectedClass?.className ?? 'Select Class',
+            _IconButton(
+              icon: Icons.chevron_left_rounded,
+              onTap: () => Navigator.pop(context),
+            ),
+            Expanded(
+              child: Text(
+                'Documents',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onSurface,
+                ),
               ),
-            if (isTeacher)
-              AppTextfield(
-                onTap: () {
-                  openSectionBottomSheet(context, sections, (section) {
-                    setState(() {
-                      selectedSection = section;
-                    });
-                  });
-                },
-                enabled: false,
-                hintText: selectedSection?.sectionName ?? 'Select Section',
+            ),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+                image: const DecorationImage(
+                  image: NetworkImage('https://i.pravatar.cc/150?u=doc_user'),
+                  fit: BoxFit.cover,
+                ),
               ),
-            if (isTeacher)
-              AppButton(
-                text: "Search",
-                onPressed: (isLoading) {
-                  if (selectedClass == null || selectedSection == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Please select both class and section',
-                          textScaler: TextScaler.linear(1.0),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontFamily: fontFamily,
-                          ),
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  setState(() {
-                    getDocumentListFuture = ViewDocumentViewModel.instance
-                        .getTeacherViewDocumentList(selectedClass!.classCode,
-                            selectedSection!.sectionCode)
-                        .then((ApiResponse<Map<String, List<Document>>>
-                            response) {
-                      if (response.success) {
-                        setState(() {
-                          documents = response.data ?? {};
-                        });
-                      }
-                      return response;
-                    });
-                  });
-                },
-              ),
-            getStudentDocumentList(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget getStudentDocumentList() {
-    return AppFutureBuilder(
-      future: getDocumentListFuture,
-      builder: (context, snapshot) => getTeacherDocumentList(),
+  Widget _buildSearchBar(DocumentViewModel vm) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: AppRadius.fullRadius,
+                  border: Border.all(color: AppColors.outlineVariant.withOpacity(0.3)),
+                  boxShadow: AppShadows.soft,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search_rounded, color: AppColors.outline, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        onChanged: (val) => vm.setSearchQuery(val),
+                        decoration: InputDecoration(
+                          hintText: 'Search documents...',
+                          hintStyle: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppColors.outline,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            _IconButton(icon: Icons.tune_rounded, onTap: () {}),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget getTeacherDocumentList() {
-    if (documents.isEmpty) {
-      return const NoDataWidget();
-    }
-    return getDocumentListView();
+  Widget _buildCategories(DocumentViewModel vm) {
+    final categories = [
+      _CategoryData('Circulars', Icons.campaign_rounded, const Color(0xFF0EA5E9), vm.documents['Circulars']?.length ?? 0),
+      _CategoryData('Notices', Icons.notifications_rounded, const Color(0xFFF59E0B), vm.documents['Notices']?.length ?? 0),
+      _CategoryData('Holiday Homework', Icons.menu_book_rounded, const Color(0xFF10B981), vm.documents['Holiday Homework']?.length ?? 0),
+      _CategoryData('Worksheets', Icons.assignment_rounded, const Color(0xFF8B5CF6), vm.documents['Worksheets']?.length ?? 0),
+      _CategoryData('Syllabus', Icons.description_rounded, const Color(0xFFEF4444), vm.documents['Syllabus']?.length ?? 0),
+    ];
+
+    return SliverToBoxAdapter(
+      child: Container(
+        height: 140,
+        margin: const EdgeInsets.only(top: 16),
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, i) => _CategoryCard(data: categories[i]),
+        ),
+      ),
+    );
   }
 
-  Widget getDocumentListView() {
-    return ListView.builder(
-      itemCount: documents.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, index) {
-        String key = documents.keys.elementAt(index);
-        List<Document> docList = documents[key] ?? [];
+  Widget _buildRecentHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 24, AppSpacing.lg, 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Recent Documents',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              child: Row(
+                children: [
+                  Text(
+                    'View All',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-        return ViewDocumentTile(
-          title: key,
-          subtitle: "${docList.length} Document(s)",
-          icon: Icons.file_copy_rounded,
-          items: docList,
-        );
-      },
+  Widget _buildDocumentList(DocumentViewModel vm) {
+    final filtered = vm.filteredDocuments;
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, i) => _DocumentCard(doc: filtered[i]),
+          childCount: filtered.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomCta() {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFECFEFF),
+          borderRadius: AppRadius.xlRadius,
+          border: Border.all(color: const Color(0xFFCFFAFE)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: AppRadius.lgRadius,
+              ),
+              child: const Icon(Icons.archive_outlined, color: Color(0xFF0891B2)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'All important documents in one place',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF164E63),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Stay updated with the latest circulars, notices, assignments and more.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF0891B2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF164E63),
+                borderRadius: AppRadius.fullRadius,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.history_rounded, color: Colors.white, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    'View Archived',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class ViewDocumentTile extends StatefulWidget {
-  final String title;
-  final String subtitle;
+class _CategoryData {
+  final String label;
   final IconData icon;
-  final List<Document> items;
-
-  const ViewDocumentTile({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.items,
-  });
-
-  @override
-  _ViewDocumentTileState createState() => _ViewDocumentTileState();
+  final Color color;
+  final int count;
+  _CategoryData(this.label, this.icon, this.color, this.count);
 }
 
-class _ViewDocumentTileState extends State<ViewDocumentTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  bool isExpanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _toggleExpand() {
-    if (widget.items.isEmpty) {
-      return;
-    }
-    setState(() {
-      isExpanded = !isExpanded;
-      if (isExpanded) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+class _CategoryCard extends StatelessWidget {
+  final _CategoryData data;
+  const _CategoryCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: ColorConstant.primaryColor)),
+      width: 100,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: data.color.withOpacity(0.08),
+        borderRadius: AppRadius.xlRadius,
+        border: Border.all(color: data.color.withOpacity(0.12)),
       ),
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ListTile(
-            leading: Icon(
-              widget.icon,
-              color: ColorConstant.primaryColor,
-              size: 28,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: AppRadius.lgRadius,
+              boxShadow: [
+                BoxShadow(
+                  color: data.color.withOpacity(0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            title: Text(
-              widget.title,
-              textScaler: const TextScaler.linear(1.0),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: ColorConstant.primaryColor,
-                fontFamily: fontFamily,
-                fontSize: 18,
-              ),
-            ),
-            subtitle: Text(
-              widget.subtitle,
-              textScaler: const TextScaler.linear(1.0),
-              style: const TextStyle(
-                color: ColorConstant.inactiveColor,
-                fontFamily: fontFamily,
-                fontSize: 14,
-              ),
-            ),
-            trailing: widget.items.isNotEmpty
-                ? IconButton(
-                    icon: Icon(isExpanded
-                        ? CupertinoIcons.chevron_up
-                        : CupertinoIcons.chevron_down),
-                    onPressed: _toggleExpand,
-                  )
-                : null,
-            onTap: _toggleExpand,
+            child: Icon(data.icon, color: data.color, size: 24),
           ),
-          if (widget.items.isNotEmpty)
-            SizeTransition(
-              sizeFactor: _animation,
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  right: 16.0,
-                  left: 56,
+          const SizedBox(height: 12),
+          Text(
+            data.label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: data.color,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${data.count}',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: data.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentCard extends StatelessWidget {
+  final Document doc;
+  const _DocumentCard({required this.doc});
+
+  @override
+  Widget build(BuildContext context) {
+    final type = doc.documentType ?? "Circular";
+    final color = _getColorForType(type);
+    final icon = _getIconForType(type);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: AppRadius.xlRadius,
+        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.25)),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: AppRadius.lgRadius,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: AppRadius.fullRadius,
+                  ),
+                  child: Text(
+                    type,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: widget.items
-                      .map(
-                        (item) => InkWell(
-                          onTap: () {
-                            launchURLString(item.attachment ?? "");
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(top: 12.0),
-                            child: Text(
-                              "•  ${item.remarks ?? ""} (Upload Date - ${formatAnyDateToDDMMYY(item.uploadDate ?? "")})",
-                              textScaler: const TextScaler.linear(1.0),
-                              style: const TextStyle(
-                                color: ColorConstant.inactiveColor,
-                                fontFamily: fontFamily,
-                                decoration: TextDecoration.underline,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
+                const SizedBox(height: 6),
+                Text(
+                  doc.remarks ?? 'Untitled Document',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Please find the details for ${type.toLowerCase()}...',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatAnyDateToDDMMYY(doc.uploadDate ?? ""),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
-            ),
-          const SizedBox(height: 10)
+              const SizedBox(height: 2),
+              Text(
+                'PDF • 512 KB',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  color: AppColors.outline,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _IconButton(
+                icon: Icons.download_rounded,
+                size: 32,
+                iconSize: 18,
+                onTap: () => launchURLString(doc.attachment ?? ""),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Color _getColorForType(String type) {
+    if (type.contains('Circular')) return const Color(0xFF0EA5E9);
+    if (type.contains('Notice')) return const Color(0xFFF59E0B);
+    if (type.contains('Homework')) return const Color(0xFF10B981);
+    if (type.contains('Worksheet')) return const Color(0xFF8B5CF6);
+    if (type.contains('Syllabus')) return const Color(0xFFEF4444);
+    return AppColors.primary;
+  }
+
+  IconData _getIconForType(String type) {
+    if (type.contains('Circular')) return Icons.campaign_rounded;
+    if (type.contains('Notice')) return Icons.notifications_rounded;
+    if (type.contains('Homework')) return Icons.menu_book_rounded;
+    if (type.contains('Worksheet')) return Icons.assignment_rounded;
+    if (type.contains('Syllabus')) return Icons.description_rounded;
+    return Icons.file_copy_rounded;
+  }
+}
+
+class _IconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final double size;
+  final double iconSize;
+
+  const _IconButton({
+    required this.icon,
+    required this.onTap,
+    this.size = 44,
+    this.iconSize = 22,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.fullRadius,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Icon(icon, color: AppColors.onSurface, size: iconSize),
       ),
     );
   }
