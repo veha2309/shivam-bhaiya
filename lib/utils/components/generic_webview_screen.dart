@@ -9,6 +9,7 @@ import 'package:school_app/utils/components/body.dart';
 import 'package:school_app/services/download_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class GenericWebViewScreen extends StatefulWidget {
   final String? title;
@@ -30,29 +31,47 @@ class _GenericWebViewScreenState extends State<GenericWebViewScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    final permissions = await [
-      Permission.camera,
-      Permission.photos,
-      Permission.storage,
-      if (await Permission.photos.isPermanentlyDenied == false)
-        Permission.mediaLibrary,
-    ].request();
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
 
-    bool allGranted = await Permission.camera.isGranted &&
-        (await Permission.photos.isGranted ||
-            await Permission.mediaLibrary.isGranted);
+      List<Permission> permissionsToRequest = [Permission.camera];
 
-    setState(() {
-      _permissionsGranted = allGranted;
-    });
+      if (sdkInt < 33) {
+        // Android 12 and below
+        permissionsToRequest.add(Permission.storage);
+      }
+      // On Android 13+, we don't request Permission.photos or Permission.videos
+      // because we use the system Photo Picker via InAppWebView, which requires no permissions.
 
-    if (!allGranted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Camera and storage permissions are required for uploading images'),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      final statuses = await permissionsToRequest.request();
+
+      bool cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
+      bool storageGranted = sdkInt < 33 ? (statuses[Permission.storage]?.isGranted ?? false) : true;
+
+      setState(() {
+        _permissionsGranted = cameraGranted && storageGranted;
+      });
+
+      if (!cameraGranted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Camera permission is required for taking photos'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } else {
+      // iOS and other platforms
+      final statuses = await [
+        Permission.camera,
+        Permission.photos,
+      ].request();
+
+      setState(() {
+        _permissionsGranted = statuses[Permission.camera]?.isGranted == true &&
+            statuses[Permission.photos]?.isGranted == true;
+      });
     }
   }
 
