@@ -319,6 +319,19 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
                             color: ColorConstant.secondaryTextColor,
                           ),
                         ),
+                        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif']
+                            .contains(selectedFile!.extension?.toLowerCase())) ...[
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(selectedFile!.path!),
+                              height: 200,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -363,6 +376,15 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(pickedImage!.path),
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ],
                     ),
                   ),

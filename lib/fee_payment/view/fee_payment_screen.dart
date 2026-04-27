@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
 import 'package:school_app/utils/components/body.dart';
 import 'package:school_app/services/download_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FeePaymentScreen extends StatefulWidget {
   final String? title;
@@ -29,6 +30,12 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
     final newParams = Map<String, String>.from(uri.queryParameters)
       ..addAll(params);
     return uri.replace(queryParameters: newParams);
+  }
+
+  bool _isStandardWebScheme(String? scheme) {
+    if (scheme == null) return true;
+    final s = scheme.toLowerCase();
+    return ['http', 'https', 'file', 'chrome', 'data', 'javascript', 'about'].contains(s);
   }
 
   @override
@@ -57,11 +64,19 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                 useOnDownloadStart: true,
                 useOnLoadResource: true,
                 useShouldOverrideUrlLoading: true,
+                useHybridComposition: true,
+                mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                domStorageEnabled: true,
+                databaseEnabled: true,
               ),
               onWebViewCreated: (controller) {
                 _webViewController = controller;
               },
               onLoadStart: (controller, url) {
+                if (!_isStandardWebScheme(url?.scheme)) {
+                  controller.stopLoading();
+                  return;
+                }
                 setState(() {
                   _isLoading = true;
                 });
@@ -72,21 +87,44 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                 });
               },
               shouldOverrideUrlLoading: (controller, navigationAction) async {
-                final url = navigationAction.request.url.toString();
+                final uri = navigationAction.request.url;
+                if (uri == null) return NavigationActionPolicy.ALLOW;
 
-                // Check if URL is downloadable
-                if (DownloadService.isDownloadableUrl(url)) {
-                  // Handle download
-                  await DownloadService.downloadFile(
-                    url: url,
-                    context: context,
-                  );
-                  // Prevent navigation to download URL
-                  return NavigationActionPolicy.CANCEL;
+                // 1. Handle normal web navigation
+                if (_isStandardWebScheme(uri.scheme)) {
+                  if (DownloadService.isDownloadableUrl(uri.toString())) {
+                    await DownloadService.downloadFile(
+                      url: uri.toString(),
+                      context: context,
+                    );
+                    return NavigationActionPolicy.CANCEL;
+                  }
+                  return NavigationActionPolicy.ALLOW;
                 }
 
-                // Allow normal navigation
-                return NavigationActionPolicy.ALLOW;
+                // 2. Handle ALL custom schemes (upi://, gpay://, phonepe://, intent://, etc.)
+                controller.stopLoading();
+
+                try {
+                  bool launched = await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+
+                  if (!launched && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("The selected payment app is not installed on this device."),
+                        backgroundColor: Colors.redAccent,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint("Error launching deep link: $e");
+                }
+
+                return NavigationActionPolicy.CANCEL;
               },
               onDownloadStartRequest: (controller, url) async {
                 // Handle download requests
@@ -95,10 +133,16 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                   context: context,
                 );
               },
-              onReceivedError: (controller, request, error) {
+              onReceivedError: (controller, request, error) async {
                 setState(() {
                   _isLoading = false;
                 });
+
+                if (error.description == "net::ERR_UNKNOWN_URL_SCHEME") {
+                  if (await controller.canGoBack()) {
+                    await controller.goBack();
+                  }
+                }
               },
             ),
             if (_isLoading) Center(child: getLoaderWidget()),

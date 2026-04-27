@@ -1332,20 +1332,47 @@ class _AddHomeWorkScreenState extends State<AddHomeWorkScreen> {
                                                         }
                                                       }
                                                     },
-                                                    child: Text(
-                                                      message,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                          fontSize: 12,
-                                                          decoration:
-                                                              TextDecoration
-                                                                  .underline,
-                                                          decorationColor:
-                                                              ColorConstant
-                                                                  .primaryColor,
-                                                          color: ColorConstant
-                                                              .primaryColor),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        if (attachment != null &&
+                                                            attachment.path != null)
+                                                          Builder(builder: (context) {
+                                                            final ext = attachment.name
+                                                                .split('.')
+                                                                .last
+                                                                .toLowerCase();
+                                                            const imageExtensions = {
+                                                              'png', 'jpg', 'jpeg', 'gif', 'bmp', 'wbmp', 'webp', 'heic', 'heif',
+                                                            };
+                                                            if (imageExtensions.contains(ext)) {
+                                                              return Padding(
+                                                                padding: const EdgeInsets.only(right: 4.0),
+                                                                child: ClipRRect(
+                                                                  borderRadius: BorderRadius.circular(4),
+                                                                  child: Image.file(
+                                                                    File(attachment.path!),
+                                                                    height: 24,
+                                                                    width: 24,
+                                                                    fit: BoxFit.cover,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            }
+                                                            return const SizedBox.shrink();
+                                                          }),
+                                                        Flexible(
+                                                          child: Text(
+                                                            message,
+                                                            overflow: TextOverflow.ellipsis,
+                                                            style: const TextStyle(
+                                                                fontSize: 12,
+                                                                decoration: TextDecoration.underline,
+                                                                decorationColor: ColorConstant.primaryColor,
+                                                                color: ColorConstant.primaryColor),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
                                                 ),
