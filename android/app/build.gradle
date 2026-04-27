@@ -39,7 +39,7 @@ android {
         applicationId = "com.vivekanand.mobileapp55566"
         minSdkVersion = 23
         targetSdk = flutter.targetSdkVersion
-        versionCode = 31
+        versionCode = 35
         versionName = "1.1.6"
         multiDexEnabled true
         
