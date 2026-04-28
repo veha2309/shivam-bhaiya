@@ -3,6 +3,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:school_app/admin_dashboard/view/admin_navigation_screen.dart';
 import 'package:school_app/auth/model/user.dart';
 import 'package:school_app/auth/view/forgot_password_screen.dart';
 import 'package:school_app/auth/view/user_password_screen.dart';
@@ -84,6 +85,21 @@ class _LoginScreenState extends State<LoginScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
+          ElevatedButton(
+            onPressed: () async {
+              // 1. Use the Singleton instance instead of context.read()
+              bool success = await AuthViewModel.instance.loginAsDummyAdmin();
+
+              // 2. If successful, navigate to the Admin Dashboard
+              if (success && context.mounted) {
+                Navigator.pushReplacementNamed(context, AdminNavigationScreen.routeName);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+            ),
+            child: const Text("DEV: Login as Admin"),
+          ),
           // ── Top section: logo + Vivekanand idol ─────────────────────────────
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.42,
@@ -110,7 +126,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        context.read<LanguageProvider>().translate('school_address'),
+                        context
+                            .read<LanguageProvider>()
+                            .translate('school_address'),
                         textScaler: const TextScaler.linear(1.0),
                         style: GoogleFonts.inter(
                           fontSize: 11,
@@ -139,7 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   minHeight: MediaQuery.of(context).size.height * 0.6,
                 ),
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xl,
                 ),
                 decoration: const BoxDecoration(
                   color: AppColors.surfaceContainerLowest,
@@ -153,7 +174,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     // Heading
                     Text(
-                      context.read<LanguageProvider>().translate('welcome_back'),
+                      context
+                          .read<LanguageProvider>()
+                          .translate('welcome_back'),
                       textScaler: const TextScaler.linear(1.0),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 30,
@@ -164,7 +187,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      context.read<LanguageProvider>().translate('login_subtitle'),
+                      context
+                          .read<LanguageProvider>()
+                          .translate('login_subtitle'),
                       textScaler: const TextScaler.linear(1.0),
                       style: GoogleFonts.inter(
                         fontSize: 14,
@@ -179,7 +204,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppTextfield(
                       enabled: true,
                       controller: _usernameCtrl,
-                      hintText: context.read<LanguageProvider>().translate('username_hint'),
+                      hintText: context
+                          .read<LanguageProvider>()
+                          .translate('username_hint'),
                       showIcon: false,
                       keyboardType: TextInputType.name,
                       maxlines: 1,
@@ -191,7 +218,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppTextfield(
                       enabled: true,
                       controller: _passwordCtrl,
-                      hintText: context.read<LanguageProvider>().translate('password_hint'),
+                      hintText: context
+                          .read<LanguageProvider>()
+                          .translate('password_hint'),
                       showIcon: true,
                       onIconTap: () =>
                           setState(() => _hidePassword = !_hidePassword),
@@ -210,7 +239,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () {
                           if (_usernameCtrl.text.isEmpty) {
                             showSnackBarOnScreen(
-                                context, context.read<LanguageProvider>().translate('enter_username'));
+                                context,
+                                context
+                                    .read<LanguageProvider>()
+                                    .translate('enter_username'));
                             return;
                           }
                           navigateToScreen(context,
@@ -220,7 +252,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           foregroundColor: AppColors.primaryContainer,
                         ),
                         child: Text(
-                          context.read<LanguageProvider>().translate('forgot_password'),
+                          context
+                              .read<LanguageProvider>()
+                              .translate('forgot_password'),
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -234,7 +268,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Login button
                     AppButton(
-                      text: context.read<LanguageProvider>().translate('login_button'),
+                      text: context
+                          .read<LanguageProvider>()
+                          .translate('login_button'),
                       onPressed: (loadingNotifier) async {
                         await _handleLogin(context, loadingNotifier);
                       },
@@ -250,7 +286,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           foregroundColor: AppColors.onSurfaceVariant,
                         ),
                         child: Text(
-                          context.read<LanguageProvider>().translate('login_issue'),
+                          context
+                              .read<LanguageProvider>()
+                              .translate('login_issue'),
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -273,14 +311,16 @@ class _LoginScreenState extends State<LoginScreen> {
       BuildContext context, ValueNotifier<bool> loadingNotifier) async {
     if (_usernameCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.read<LanguageProvider>().translate('enter_username')),
+        content:
+            Text(context.read<LanguageProvider>().translate('enter_username')),
         backgroundColor: AppColors.primaryContainer,
       ));
       return;
     }
     if (_passwordCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.read<LanguageProvider>().translate('enter_password')),
+        content:
+            Text(context.read<LanguageProvider>().translate('enter_password')),
         backgroundColor: AppColors.primaryContainer,
       ));
       return;
@@ -301,14 +341,17 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user == null) {
         _isLoading.value = false;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.read<LanguageProvider>().translate('something_wrong')),
+          content: Text(
+              context.read<LanguageProvider>().translate('something_wrong')),
         ));
         return;
       }
 
-      ApiResponse passResponse = await AuthViewModel.instance
-          .authenticateWithEmailAndPassword(
-        user.username, _passwordCtrl.text, user.userType,
+      ApiResponse passResponse =
+          await AuthViewModel.instance.authenticateWithEmailAndPassword(
+        user.username,
+        _passwordCtrl.text,
+        user.userType,
         user.affiliationCode ?? '',
       );
 
@@ -325,14 +368,16 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading.value = false;
         await LocalStorage.deleteUser(user.username);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(passResponse.errorMessage ?? context.read<LanguageProvider>().translate('auth_failed')),
+          content: Text(passResponse.errorMessage ??
+              context.read<LanguageProvider>().translate('auth_failed')),
           backgroundColor: AppColors.error,
         ));
       }
     } else {
       await LocalStorage.deleteUser(_usernameCtrl.text);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(response.errorMessage ?? context.read<LanguageProvider>().translate('login_failed')),
+        content: Text(response.errorMessage ??
+            context.read<LanguageProvider>().translate('login_failed')),
         backgroundColor: AppColors.error,
       ));
       _isLoading.value = false;
@@ -347,9 +392,11 @@ class _BackgroundDecor extends StatelessWidget {
     return Stack(
       children: [
         Positioned(
-          top: -60, right: -60,
+          top: -60,
+          right: -60,
           child: Container(
-            width: 220, height: 220,
+            width: 220,
+            height: 220,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.04),
@@ -357,9 +404,11 @@ class _BackgroundDecor extends StatelessWidget {
           ),
         ),
         Positioned(
-          top: 80, left: -40,
+          top: 80,
+          left: -40,
           child: Container(
-            width: 140, height: 140,
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.primary.withOpacity(0.08),

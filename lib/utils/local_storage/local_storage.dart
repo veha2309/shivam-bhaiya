@@ -138,4 +138,17 @@ class LocalStorage {
   static Future<void> saveLanguage(String lang) async {
     await _box.put('language', lang);
   }
+
+  static Future<void> logoutCurrentUser() async {
+    List<User> users = getAllUsers();
+    for (var user in users) {
+      user.isLogged = false;
+    }
+    await _box.put('users', users.map((user) => user.toJson()).toList());
+    await clearNotificationShownStatus();
+  }
+
+  static Future<void> clearAll() async {
+    await _box.clear();
+  }
 }

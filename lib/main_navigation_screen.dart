@@ -6,6 +6,7 @@ import 'package:school_app/homework_screen/view/homework_screen.dart';
 import 'package:school_app/student_profile/View/student_profile_screen.dart';
 import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/auth/view_model/auth.dart';
+import 'package:school_app/admin_dashboard/view/admin_dashboard_view.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   static const String routeName = '/main-nav';

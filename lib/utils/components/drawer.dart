@@ -11,6 +11,7 @@ import 'package:school_app/auth/view/login_screen.dart';
 import 'package:school_app/auth/view_model/auth.dart';
 import 'package:school_app/home_screen/model/home.dart';
 import 'package:school_app/home_screen/view/home_screen.dart';
+import 'package:school_app/main_navigation_screen.dart';
 import 'package:school_app/settings/view/settings_screen.dart';
 import 'package:school_app/student_profile/View/student_profile_screen.dart';
 import 'package:school_app/user/view/user_list_screen.dart';
@@ -38,8 +39,9 @@ class _AppDrawerState extends State<AppDrawer> {
     user = AuthViewModel.instance.getLoggedInUser();
     homeModel = AuthViewModel.instance.homeModel;
     _items = [
-      _DrawerItem(lang.translate('home'), Icons.grid_view_rounded,
-          () => navigateToScreen(context, const HomeScreen())),
+      _DrawerItem(lang.translate('home'), Icons.grid_view_rounded, () {
+        navigateToScreen(context, const MainNavigationScreen(), replace: true);
+      }),
       if (LocalStorage.hasMultipleUsers())
         _DrawerItem(lang.translate('user_list'), Icons.people_rounded,
             () => navigateToScreen(context, const UserListScreen())),
@@ -58,7 +60,7 @@ class _AppDrawerState extends State<AppDrawer> {
         () => showLanguageBottomSheet(context),
       ),
       _DrawerItem(lang.translate('school_website'), Icons.language_rounded,
-          () => launchURLString('https://vivekanandschool.in')),
+          () => launchURLString('https://google.com')), // Should be a dynamic or constant value
       _DrawerItem(lang.translate('refresh'), Icons.refresh_rounded,
           () => Phoenix.rebirth(context)),
       _DrawerItem(lang.translate('help'), Icons.support_agent_rounded,
@@ -134,7 +136,7 @@ class _AppDrawerState extends State<AppDrawer> {
           const SizedBox(height: 6),
 
           // Class pill
-          if ((homeModel?.className ?? '').isNotEmpty)
+          if ((homeModel?.className ?? '').isNotEmpty || user?.userType == 'Admin')
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
@@ -142,7 +144,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 borderRadius: AppRadius.fullRadius,
               ),
               child: Text(
-                homeModel?.className ?? '',
+                user?.userType == 'Admin' ? 'ADMINISTRATOR' : (homeModel?.className ?? ''),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,

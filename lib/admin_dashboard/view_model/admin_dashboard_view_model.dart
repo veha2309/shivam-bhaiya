@@ -1,0 +1,31 @@
+import 'package:flutter/material.dart';
+
+class AdminDashboardViewModel extends ChangeNotifier {
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  // Admin specific data points
+  String get adminName => "System Admin";
+  String get adminRole => "Principal";
+  String get avatarUrl => "https://i.pravatar.cc/150?u=admin";
+  
+  String get todayCollection => "₹ 1,45,000";
+  String get pendingApprovals => "12";
+  
+  List<String> get criticalAlerts => [
+    '3 Staff members on leave today.',
+    'Fee defaulters list generated.',
+    'Board meeting at 2:00 PM.'
+  ];
+
+  Future<void> loadAdminData() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    // Simulate API fetch
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    _isLoading = false;
+    notifyListeners();
+  }
+}

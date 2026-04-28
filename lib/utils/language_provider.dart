@@ -10,7 +10,7 @@ class LanguageProvider extends ChangeNotifier {
     _loadLanguage();
   }
 
-  Language _currentLanguage = Language.hindi;
+  Language _currentLanguage = Language.english;
 
   Language get currentLanguage => _currentLanguage;
 

@@ -66,6 +66,7 @@ dependencies:
   logger: ^2.5.0
   flutter_html:
   flutter_html_table:
+  fl_chart: ^0.71.0
   # flutter_phoenix package has been replaced with custom RestartWidget implementation
 
 dev_dependencies:

@@ -101,23 +101,25 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<ApiResponse<void>> logout(BuildContext context) async {
-    String? uuid = getLoggedInUser()?.username;
+    final user = getLoggedInUser();
+    String? uuid = user?.username;
     String? deviceId = DeviceInfoService.deviceId;
 
-    if (uuid == null || deviceId == null) {
-      return ApiResponse.failure("User or DeviceId is null");
+    if (uuid != null && deviceId != null) {
+      // Attempt to notify server, but continue locally regardless of success
+      await NetworkManager.instance.makeRequest(
+        Endpoints.logoutEndpoint(uuid, deviceId),
+        (json) async => null,
+        method: HttpMethod.option,
+      );
     }
 
-    ApiResponse response = await NetworkManager.instance
-        .makeRequest(Endpoints.logoutEndpoint(uuid, deviceId), (json) async {
-      return;
-    }, method: HttpMethod.option);
-
-    await LocalStorage.deleteUser(uuid);
+    // Always clear local session and restart app to ensure clean state
+    await LocalStorage.logoutCurrentUser();
     notifyListeners();
     Phoenix.rebirth(context);
 
-    return response;
+    return ApiResponse.success();
   }
 
   Future<ApiResponse<void>> changePassword(
@@ -165,6 +167,44 @@ class AuthViewModel extends ChangeNotifier {
       );
     } catch (e) {
       return ApiResponse.failure("An error occurred");
+    }
+  }
+  Future<bool> loginAsDummyAdmin() async {
+    try {
+      // 1. Create a dummy JSON payload that matches what your API usually returns
+      // You may need to adjust these keys based on your actual User.fromJson factory
+      final Map<String, dynamic> dummyAdminJson = {
+        'userid': 'admin_001',
+        'username': 'System Admin',
+        'usertype': 'Admin', // Set to whatever your app checks for admin rights
+        'email': 'admin@school.com',
+      };
+
+      // 2. Instantiate the user
+      User dummyAdmin = User.fromJson(dummyAdminJson);
+      
+      // 3. Set the required session variables
+      dummyAdmin.accessToken = "mock_admin_access_token_12345";
+      dummyAdmin.isLogged = true;
+      dummyAdmin.affiliationCode = "TEST_SCHOOL_01";
+      dummyAdmin.profileImageUrl = "https://i.pravatar.cc/150?u=admin";
+      
+      // Clear out student-specific fields
+      dummyAdmin.classCode = "";
+      dummyAdmin.sectionCode = "";
+      dummyAdmin.className = "Administration";
+      dummyAdmin.sectionName = "";
+
+      // 4. Save to local storage to persist the session
+      await LocalStorage.addUser(dummyAdmin);
+      
+      // 5. Update state
+      notifyListeners();
+      
+      return true; // Success
+    } catch (e) {
+      debugPrint("Dummy Admin Login Failed: $e");
+      return false; // Failed
     }
   }
 }

@@ -155,22 +155,6 @@ class _AppBarActions extends StatelessWidget {
     // Actions are now consistent across all screens (No more context switching)
     return Row(
       children: [
-<<<<<<< Updated upstream
-        if (showBackButton)
-          _ActionButton(
-            icon: Icons.home_rounded,
-            onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
-          ),
-        if (!showBackButton)
-          _ActionButton(
-            icon: Icons.notifications_none_rounded, // Use outline for modern feel
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const NotificationsScreen(),
-              ),
-            ),
-          ),
-=======
         _ActionButton(
           icon: Icons.notifications_none_rounded, 
           onTap: () => Navigator.of(context).push(
@@ -186,7 +170,6 @@ class _AppBarActions extends StatelessWidget {
             // Navigate to profile or show quick profile
           },
         ),
->>>>>>> Stashed changes
       ],
     );
   }
