@@ -101,23 +101,27 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<ApiResponse<void>> logout(BuildContext context) async {
+    debugPrint("AuthViewModel: Logging out...");
     final user = getLoggedInUser();
     String? uuid = user?.username;
     String? deviceId = DeviceInfoService.deviceId;
 
+    // Notify server asynchronously (don't await)
     if (uuid != null && deviceId != null) {
-      // Attempt to notify server, but continue locally regardless of success
-      await NetworkManager.instance.makeRequest(
+      NetworkManager.instance.makeRequest(
         Endpoints.logoutEndpoint(uuid, deviceId),
         (json) async => null,
-        method: HttpMethod.option,
-      );
+        method: HttpMethod.post, // Changed from HttpMethod.option
+      ).catchError((e) => debugPrint("Server logout failed: $e"));
     }
 
     // Always clear local session and restart app to ensure clean state
     await LocalStorage.logoutCurrentUser();
     notifyListeners();
-    Phoenix.rebirth(context);
+    
+    if (context.mounted) {
+      Phoenix.rebirth(context);
+    }
 
     return ApiResponse.success();
   }

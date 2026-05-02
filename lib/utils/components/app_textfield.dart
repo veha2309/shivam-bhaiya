@@ -21,6 +21,7 @@ class AppTextfield extends StatefulWidget {
   final int? maxlines;
   final Function(String)? onSubmit;
   final TextStyle? textStyle;
+  final IconData? prefixIcon;
 
   const AppTextfield({
     super.key,
@@ -40,6 +41,7 @@ class AppTextfield extends StatefulWidget {
     this.icon,
     this.onSubmit,
     this.textStyle,
+    this.prefixIcon,
   });
 
   @override
@@ -105,6 +107,13 @@ class _AppTextfieldState extends State<AppTextfield> {
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
+            prefixIcon: widget.prefixIcon != null 
+                ? Icon(
+                    widget.prefixIcon,
+                    color: _isFocused ? AppColors.primary : AppColors.onSurfaceVariant.withOpacity(0.5),
+                    size: 20,
+                  ) 
+                : null,
             suffixIcon: showIcon
                 ? InkWell(
                     onTap: widget.onIconTap,

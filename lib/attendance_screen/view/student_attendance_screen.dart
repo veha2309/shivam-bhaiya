@@ -5,6 +5,7 @@ import 'package:school_app/attendance_screen/model/attendance_model.dart';
 import 'package:school_app/attendance_screen/view_model/attendance_view_model.dart';
 import 'package:school_app/home_screen/view/components/attendance_pie_chart.dart';
 import 'package:school_app/utils/app_theme.dart';
+import 'package:school_app/utils/components/components.dart';
 import 'package:school_app/utils/utils.dart';
 
 final class StudentAttendanceScreen extends StatelessWidget {
@@ -26,6 +27,7 @@ final class StudentAttendanceScreen extends StatelessWidget {
 
           return Scaffold(
             backgroundColor: AppColors.surface,
+            drawer: const AppDrawer(),
             body: SafeArea(
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -264,19 +266,21 @@ final class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
-          borderRadius: AppRadius.fullRadius,
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
-              boxShadow: AppShadows.soft,
+        Builder(
+          builder: (ctx) => InkWell(
+            onTap: () => Scaffold.of(ctx).openDrawer(),
+            borderRadius: AppRadius.fullRadius,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+                boxShadow: AppShadows.soft,
+              ),
+              child: const Icon(Icons.menu_rounded, color: AppColors.onSurface),
             ),
-            child: const Icon(Icons.chevron_left_rounded, color: AppColors.onSurface),
           ),
         ),
         const SizedBox(width: 12),

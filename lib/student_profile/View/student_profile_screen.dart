@@ -44,6 +44,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       isLoadingNotifier: isLoadingNotifier,
+      showBackButton: false,
       body: AppBody(
         title: "Student's Profile",
         body: AppFutureBuilder(

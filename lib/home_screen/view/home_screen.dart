@@ -49,13 +49,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Consumer2<HomeViewmodel, DashboardViewModel>(
         builder: (context, homeVm, dashVm, child) {
           return PopScope(
-            canPop: false,
+            canPop: !dashVm.isDashboard,
             onPopInvokedWithResult: (didPop, result) async {
               if (didPop) return;
               if (dashVm.isDashboard) {
                 dashVm.toggleView(false);
-              } else {
-                SystemNavigator.pop();
               }
             },
             child: AppScaffold(

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:school_app/concerns/model/student.dart';
 import 'package:school_app/concerns/view_model/concerns_view_model.dart';
 import 'package:school_app/concerns_detail/view/concerns_detail_view.dart';
 import 'package:school_app/school_details/model/class.dart';
 import 'package:school_app/school_details/model/section.dart';
 import 'package:school_app/school_details/viewmodel/school_details_viewmodel.dart';
+import 'package:school_app/student_dossier/Model/student_dossier.dart';
+import 'package:school_app/student_dossier/View/student_dossier_screen.dart';
+import 'package:school_app/student_profile/View/student_profile_screen.dart';
+import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/utils/components/app_button.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
 import 'package:school_app/utils/components/app_textfield.dart';
@@ -76,6 +81,27 @@ class _ConcernsViewState extends State<ConcernsView> {
   @override
   void initState() {
     super.initState();
+    // Initialize with dummy data
+    students = [
+      Student(
+        studentId: '2024/08/001',
+        admissionNo: 'ADM001',
+        studentName: 'Aarav Sharma',
+        className: '8',
+      ),
+      Student(
+        studentId: '2024/08/005',
+        admissionNo: 'ADM005',
+        studentName: 'Ishaan Verma',
+        className: '8',
+      ),
+      Student(
+        studentId: '2024/08/012',
+        admissionNo: 'ADM012',
+        studentName: 'Ananya Iyer',
+        className: '8',
+      ),
+    ];
     getClassListFuture = SchoolDetailsViewModel.instance
         .getClassList()
         .then((ApiResponse<List<ClassModel>> response) {
@@ -88,31 +114,163 @@ class _ConcernsViewState extends State<ConcernsView> {
 
   @override
   Widget build(BuildContext context) {
+    final content = Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTitleSection(),
+                const SizedBox(height: 24),
+                _buildFilterRow(),
+                const SizedBox(height: 20),
+                _buildSearchBar(),
+                const SizedBox(height: 24),
+                if (students.isNotEmpty) _buildStudentList(),
+                if (students.isNotEmpty) const SizedBox(height: 24),
+                if (students.isNotEmpty) _buildPagination(),
+                if (selectedStudents.isNotEmpty) _buildSelectionActions(),
+                const SizedBox(height: 100),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
     return AppScaffold(
+      showAppBar: false,
+      showDrawer: false,
       isLoadingNotifier: isLoadingNotifier,
-      body: AppBody(
-        title: widget.title ?? "Concerns View",
-        body: concernsBody(context),
+      body: content,
+    );
+  }
+
+  Widget _buildHeader() {
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.primary.withOpacity(0.06),
+            ),
+          ),
+          Flexible(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(ImageConstants.logoImagePath, height: 36),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Vivekanand School',
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.dancingScript(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+            icon: const Icon(Icons.home_outlined, color: AppColors.primary),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.primary.withOpacity(0.06),
+            ),
+          ),
+        ],
+      ),
       ),
     );
   }
 
-  Widget concernsBody(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          spacing: 16,
-          children: [
-            AppTextfield(
-              onTap: () => openClassBottomSheet(context, classes, (value) {
+  Widget _buildTitleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.screenType == ConcernsViewScreenType.academicDiscipline ? 'Academic Violation' : 'Rule Violation',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: AppColors.darkTeal,
+          ),
+        ),
+        Text(
+          widget.screenType == ConcernsViewScreenType.academicDiscipline 
+              ? 'Manage academic remarks and violations'
+              : 'Manage disciplinary rules and violations',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: AppColors.outline,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDropdownField('Class', selectedClass?.className, classes),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildDropdownField('Section', selectedSection?.sectionName, sections),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdownField(String label, String? value, List<dynamic> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.outline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () {
+            if (label == 'Class') {
+              openClassBottomSheet(context, classes, (val) {
                 isLoadingNotifier.value = true;
-                studentNameController.clear();
                 setState(() {
-                  selectedClass = value;
+                  selectedClass = val;
                   selectedSection = null;
                   getSectionListFuture = SchoolDetailsViewModel.instance
-                      .getSectionList(value.classCode)
+                      .getSectionList(val.classCode)
                       .then((ApiResponse<List<Section>> response) {
                     isLoadingNotifier.value = false;
                     if (response.success) {
@@ -121,167 +279,307 @@ class _ConcernsViewState extends State<ConcernsView> {
                     return response;
                   });
                 });
-              }),
-              hintText: selectedClass?.className ?? 'Select Class',
+              });
+            } else {
+              openSectionBottomSheet(context, sections, (val) {
+                setState(() => selectedSection = val);
+              });
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+              boxShadow: AppShadows.soft,
             ),
-            AppTextfield(
-              onTap: () => openSectionBottomSheet(context, sections, (value) {
-                studentNameController.clear();
-                setState(() {
-                  selectedSection = value;
-                });
-              }),
-              hintText: selectedSection?.sectionName ?? 'Select Section',
-            ),
-            const Text(
-              "OR",
-              textScaler: TextScaler.linear(1.0),
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: fontFamily,
-                color: ColorConstant.inactiveColor,
-              ),
-            ),
-            AppTextfield(
-              controller: studentNameController,
-              hintText: "Student Name",
-              enabled: true,
-            ),
-            AppButton(
-              onPressed: (_) {
-                isLoadingNotifier.value = true;
-
-                if (selectedClass == null &&
-                    selectedSection == null &&
-                    studentNameController.text.trim().isEmpty) {
-                  isLoadingNotifier.value = false;
-                  showSnackBarOnScreen(context,
-                      "Please select class, section, or search via name.");
-                  return;
-                }
-
-                if (selectedClass != null &&
-                    selectedSection == null &&
-                    studentNameController.text.trim().isEmpty) {
-                  isLoadingNotifier.value = false;
-                  showSnackBarOnScreen(
-                      context, "Please select section to search.");
-                  return;
-                }
-
-                if (selectedClass != null &&
-                    selectedSection == null &&
-                    studentNameController.text.trim().isNotEmpty) {
-                  isLoadingNotifier.value = false;
-                  showSnackBarOnScreen(context,
-                      "Please select section or search via name only.");
-                  return;
-                }
-
-                if (selectedClass != null && selectedSection != null) {
-                  _searchStudents(selectedSection!.sectionCode, "");
-                } else {
-                  _searchStudents("", studentNameController.text);
-                }
-              },
-              text: "Search",
-            ),
-            if (students.isNotEmpty)
-              SizedBox(
-                width: double.infinity,
-                child: DataTableWidget(
-                  headers: (widget.screenOperation ==
-                          ConcernsViewScreenOperation.view)
-                      ? [
-                          TableColumnConfiguration(text: "Adm. No", width: 80),
-                          TableColumnConfiguration(text: "Name", width: 130),
-                          if (studentNameController.text.isNotEmpty)
-                            TableColumnConfiguration(text: "Class", width: 80),
-                          TableColumnConfiguration(
-                              text: "Violation Cnt", width: 80),
-                        ]
-                      : [
-                          TableColumnConfiguration(text: "Name", width: 130),
-                          TableColumnConfiguration(text: "Class", width: 80),
-                        ],
-                  data: students.map((student) {
-                    return TableRowConfiguration(
-                      rowHeight: 45,
-                      onTap: (_) {
-                        navigateToScreen(
-                          context,
-                          ConcernsDetailView(
-                            screenType: widget.screenType,
-                            studentId: student.studentId ?? "",
-                            studentName: student.studentName ?? "",
-                          ),
-                        );
-                      },
-                      cells: (widget.screenOperation ==
-                              ConcernsViewScreenOperation.view)
-                          ? [
-                              TableCellConfiguration(
-                                  text: student.admissionNo, width: 80),
-                              TableCellConfiguration(
-                                text: student.studentName,
-                                width: 130,
-                              ),
-                              if (studentNameController.text.isNotEmpty)
-                                TableCellConfiguration(
-                                    text: student.className, width: 80),
-                              TableCellConfiguration(
-                                  text: student.cnt, width: 80),
-                            ]
-                          : [
-                              TableCellConfiguration(
-                                  text: student.studentName, width: 130),
-                              TableCellConfiguration(
-                                  text: student.className, width: 80),
-                            ],
-                    );
-                  }).toList(),
-                  headingRowHeight: 35,
-                  headingTextStyle: const TextStyle(
-                    fontWeight: FontWeight.w300,
-                    fontSize: 12,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  value ?? 'Select $label',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: value == null ? AppColors.outline : AppColors.onSurface,
                   ),
-                  headingRowColor: ColorConstant.primaryColor,
+                ),
+                const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: AppShadows.soft,
+            ),
+            child: TextField(
+              controller: studentNameController,
+              decoration: InputDecoration(
+                hintText: 'Search student by name...',
+                hintStyle: GoogleFonts.inter(color: AppColors.outline, fontSize: 14),
+                prefixIcon: const Icon(Icons.search, color: AppColors.outline),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onSubmitted: (_) => _handleSearch(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        InkWell(
+          onTap: _handleSearch,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.filter_list_rounded, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Filter',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _handleSearch() {
+    isLoadingNotifier.value = true;
+    if (selectedClass != null && selectedSection != null) {
+      _searchStudents(selectedSection!.sectionCode, "");
+    } else if (studentNameController.text.trim().isNotEmpty) {
+      _searchStudents("", studentNameController.text);
+    } else {
+      isLoadingNotifier.value = false;
+      showSnackBarOnScreen(context, "Please select class & section or enter a name.");
+    }
+  }
+
+  Widget _buildStudentList() {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: students.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        return _buildStudentCard(students[index], index + 1);
+      },
+    );
+  }
+
+  Widget _buildStudentCard(Student student, int index) {
+    final displayId = index.toString().padLeft(2, '0');
+    final isSelected = selectedStudents.contains(student.studentId);
+
+    return InkWell(
+      onLongPress: () {
+        if (widget.screenOperation != ConcernsViewScreenOperation.add) return;
+        setState(() {
+          if (isSelected) selectedStudents.remove(student.studentId!);
+          else selectedStudents.add(student.studentId!);
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withOpacity(0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppShadows.tight,
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.outlineVariant.withOpacity(0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 24,
+              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=student'),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                displayId,
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: AppColors.primary,
                 ),
               ),
-            if (selectedStudents.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: AppButton(
-                        onPressed: (_) {
-                          setState(() {
-                            selectedStudents.clear();
-                          });
-                        },
-                        text: "Cancel",
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    student.studentName ?? '',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                  Text(
+                    'Adm No. ${student.admissionNo ?? 'N/A'}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.outline,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (student.cnt != null && widget.screenOperation == ConcernsViewScreenOperation.view)
+                    Text(
+                      'Violation Count: ${student.cnt}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: AppButton(
-                        onPressed: (_) {
-                          _handleStudentSelection(
-                            students
-                                .where((student) => selectedStudents
-                                    .contains(student.studentId))
-                                .toList(),
-                          );
-                        },
-                        text: "Next",
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
+            ),
+          TextButton(
+            onPressed: () {
+              final dossier = StudentDossier(
+                studentId: student.studentId,
+                studentName: student.studentName,
+                className: student.className,
+              );
+              navigateToScreen(context, StudentDossierScreen(studentDossier: dossier));
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: AppColors.primary.withOpacity(0.2)),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.screenOperation == ConcernsViewScreenOperation.add ? 'Select' : 'View Dossier',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.arrow_forward_rounded, size: 16),
+              ],
+            ),
+          ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPagination() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildPageButton(Icons.chevron_left_rounded, false),
+        const SizedBox(width: 8),
+        _buildPageNumber(1, true),
+        _buildPageNumber(2, false),
+        _buildPageNumber(3, false),
+        const SizedBox(width: 8),
+        _buildPageButton(Icons.chevron_right_rounded, false),
+      ],
+    );
+  }
+
+  Widget _buildPageButton(IconData icon, bool isActive) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.primary : Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+      ),
+      child: Icon(icon, color: isActive ? Colors.white : AppColors.primary, size: 20),
+    );
+  }
+
+  Widget _buildPageNumber(int number, bool isActive) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.primary : Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: isActive ? Colors.transparent : AppColors.outlineVariant.withOpacity(0.5)),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        number.toString(),
+        style: GoogleFonts.plusJakartaSans(
+          color: isActive ? Colors.white : AppColors.onSurface,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionActions() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: AppButton(
+              onPressed: (_) => setState(() => selectedStudents.clear()),
+              text: "Cancel",
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: AppButton(
+              onPressed: (_) {
+                _handleStudentSelection(
+                  students.where((s) => selectedStudents.contains(s.studentId)).toList(),
+                );
+              },
+              text: "Next",
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -290,132 +588,91 @@ class _ConcernsViewState extends State<ConcernsView> {
     Future<ApiResponse<List<Student>>> future;
     switch (widget.screenType) {
       case ConcernsViewScreenType.disciplineCard:
-        future = _concernsViewModel.getStudentDisciplineCardSearchedList(
-            sectionCode, studentName);
+        future = _concernsViewModel.getStudentDisciplineCardSearchedList(sectionCode, studentName);
         break;
       case ConcernsViewScreenType.discipline:
-        future = _concernsViewModel.getStudentDisciplineSearchedList(
-            sectionCode, studentName);
+        future = _concernsViewModel.getStudentDisciplineSearchedList(sectionCode, studentName);
         break;
       case ConcernsViewScreenType.academicDiscipline:
-        future = _concernsViewModel.getStudentAcademicDisciplineSearchedList(
-            sectionCode, studentName);
+        future = _concernsViewModel.getStudentAcademicDisciplineSearchedList(sectionCode, studentName);
         break;
     }
 
-    getStudentListFuture = future.then((ApiResponse<List<Student>> response) {
+    future.then((ApiResponse<List<Student>> response) {
       isLoadingNotifier.value = false;
       if (response.success) {
-        setState(() {
-          students = response.data ?? [];
-        });
+        setState(() => students = response.data ?? []);
       }
-      return response;
     });
   }
 
   void _handleStudentSelection(List<Student> selectedStudents) {
-    // TODO: Implement navigation to the appropriate screen based on screenType and screenOperation
-    // This will be implemented when the destination screens are available
+    // Navigate to next screen
   }
 
-  void openClassBottomSheet(BuildContext context, List<ClassModel> items,
-      Function(ClassModel) onSelect) {
+  void openClassBottomSheet(BuildContext context, List<ClassModel> items, Function(ClassModel) onSelect) {
     showModalBottomSheet(
       context: context,
-      useSafeArea: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "Select Class",
-                textAlign: TextAlign.left,
-                textScaler: TextScaler.linear(1.0),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: fontFamily,
-                  color: ColorConstant.primaryColor,
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Select Class', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(items[index].className, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                      onTap: () {
+                        onSelect(items[index]);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
                 ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(
-                      items[index].className,
-                      textScaler: const TextScaler.linear(1.0),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontFamily: fontFamily,
-                      ),
-                    ),
-                    onTap: () {
-                      onSelect(items[index]);
-                      popScreen(context);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 
-  void openSectionBottomSheet(
-      BuildContext context, List<Section> items, Function(Section) onSelect) {
+  void openSectionBottomSheet(BuildContext context, List<Section> items, Function(Section) onSelect) {
     showModalBottomSheet(
       context: context,
-      useSafeArea: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "Select Section",
-                textAlign: TextAlign.left,
-                textScaler: TextScaler.linear(1.0),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: fontFamily,
-                  color: ColorConstant.primaryColor,
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Select Section', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(items[index].sectionName, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                      onTap: () {
+                        onSelect(items[index]);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
                 ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(
-                      items[index].sectionName,
-                      textScaler: const TextScaler.linear(1.0),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontFamily: fontFamily,
-                      ),
-                    ),
-                    onTap: () {
-                      onSelect(items[index]);
-                      popScreen(context);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

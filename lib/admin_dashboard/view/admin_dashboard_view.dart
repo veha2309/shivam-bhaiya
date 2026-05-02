@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
@@ -8,68 +9,130 @@ import 'package:school_app/admin_dashboard/view/components/revenue_summary_card.
 import 'package:school_app/home_screen/view/components/dashboard_utils.dart';
 
 import 'package:school_app/home_screen/view/components/hud_background.dart';
+import 'package:school_app/concerns/view/concerns_view.dart';
+import 'package:school_app/common_student_search/common_student_search_screen.dart';
+import 'package:school_app/utils/utils.dart';
+import 'package:school_app/utils/constants.dart';
 
 class AdminDashboardView extends StatelessWidget {
   static const String route = '/adminDashboard';
-  const AdminDashboardView({super.key});
+  final bool isInsideParent;
+  const AdminDashboardView({super.key, this.isInsideParent = false});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AdminDashboardViewModel>(
       builder: (context, vm, child) {
+        final content = Column(
+          children: [
+            if (isInsideParent) _buildTopBar(context),
+            Expanded(
+              child: SophisticatedHUDBackground(
+                  child: RefreshIndicator(
+                    onRefresh: () => vm.loadAdminData(),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 16, AppSpacing.lg, 100),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildGreetingHeader(vm),
+                          const SizedBox(height: AppSpacing.lg),
+                          RevenueSummaryCard(
+                            todayCollection: vm.todayCollection,
+                            onViewLedger: () {},
+                            onGenerateReport: () {},
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildTopStatsRow(),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildSectionHeader('Discrepancies & Alerts', onViewAll: () {}),
+                          const SizedBox(height: AppSpacing.sm),
+                          _buildDiscrepanciesRow(),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildInsightsHeader(),
+                          const SizedBox(height: AppSpacing.sm),
+                          _buildInsightsRow(),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildSectionHeader('Recent Activity', onViewAll: () {}),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildRecentActivityList(),
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Quick Actions',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.darkTeal,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildQuickActionsRow(context),
+                          const SizedBox(height: AppSpacing.lg),
+                          _buildBottomPanels(),
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ),
+          ],
+        );
+
+        if (isInsideParent) return content;
+
         return AppScaffold(
           showAppBar: true,
           showBackButton: false,
-          body: SophisticatedHUDBackground(
-            child: RefreshIndicator(
-              onRefresh: () => vm.loadAdminData(),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 16, AppSpacing.lg, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildGreetingHeader(vm),
-                    const SizedBox(height: AppSpacing.lg),
-                    RevenueSummaryCard(
-                      todayCollection: vm.todayCollection,
-                      onViewLedger: () {},
-                      onGenerateReport: () {},
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildTopStatsRow(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildSectionHeader('Discrepancies & Alerts', onViewAll: () {}),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildDiscrepanciesRow(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildInsightsHeader(),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildInsightsRow(),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildSectionHeader('Recent Activity', onViewAll: () {}),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildRecentActivityList(),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      'Quick Actions',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildQuickActionsRow(),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildBottomPanels(),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          activeDrawerItem: 'Dashboard',
+          body: content,
         );
       },
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 40, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Builder(
+            builder: (innerContext) => _iconBtn(
+                Icons.menu_rounded, () => Scaffold.of(innerContext).openDrawer()),
+          ),
+          const Spacer(),
+          Image.asset(ImageConstants.logoImagePath, height: 34),
+          const Spacer(),
+          _iconBtn(Icons.notifications_none_rounded, () {}),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 22),
+      ),
     );
   }
 
@@ -391,35 +454,54 @@ class AdminDashboardView extends StatelessWidget {
   }
 
   // --- 6. Quick Actions ---
-  Widget _buildQuickActionsRow() {
+  Widget _buildQuickActionsRow(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildActionIcon(Icons.person_add_alt_1_outlined, 'Assign Task'),
-        _buildActionIcon(Icons.campaign_outlined, 'Send Notice'),
-        _buildActionIcon(Icons.fact_check_outlined, 'Approve Request'),
-        _buildActionIcon(Icons.bar_chart_outlined, 'View Reports'),
+        _buildActionIcon(Icons.person_add_alt_1_outlined, 'Assign Task', () {}),
+        _buildActionIcon(Icons.campaign_outlined, 'Send Notice', () {}),
+        _buildActionIcon(Icons.fact_check_outlined, 'Approve Request', () {}),
+        _buildActionIcon(Icons.description_outlined, 'Dossier', () {
+          navigateToScreen(
+            context,
+            const CommonStudentSearchScreen(mode: StudentSearchMode.userProfile),
+          );
+        }),
+        _buildActionIcon(Icons.bar_chart_outlined, 'View Reports', () {
+          navigateToScreen(
+            context,
+            const ConcernsView(
+              title: 'Rules & Violations',
+              screenType: ConcernsViewScreenType.discipline,
+              screenOperation: ConcernsViewScreenOperation.view,
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Widget _buildActionIcon(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer.withOpacity(0.4),
-            borderRadius: DashboardUtils.futuristicRadius,
+  Widget _buildActionIcon(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: DashboardUtils.futuristicRadius,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withOpacity(0.4),
+              borderRadius: DashboardUtils.futuristicRadius,
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 28),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 28),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 

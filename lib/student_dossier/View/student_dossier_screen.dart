@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:school_app/home_screen/view/components/dashboard_utils.dart';
 import 'package:school_app/home_screen/view/components/hud_background.dart';
+import 'package:school_app/student_dossier/Model/student_dossier.dart';
 import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/utils/components/app_scaffold.dart';
 
 class StudentDossierScreen extends StatefulWidget {
   static const String routeName = '/student-dossier';
   final bool isInsideParent;
-  const StudentDossierScreen({super.key, this.isInsideParent = false});
+  final StudentDossier? studentDossier;
+  
+  const StudentDossierScreen({
+    super.key, 
+    this.isInsideParent = false,
+    this.studentDossier,
+  });
 
   @override
   State<StudentDossierScreen> createState() => _StudentDossierScreenState();
@@ -16,11 +23,22 @@ class StudentDossierScreen extends StatefulWidget {
 
 class _StudentDossierScreenState extends State<StudentDossierScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late StudentDossier student;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    student = widget.studentDossier ?? StudentDossier(
+      studentId: '2024/08/023',
+      studentName: 'Aarav Sharma',
+      className: '8',
+      sectionName: 'A',
+      fatherName: 'Mr. Rajesh Sharma',
+      motherName: 'Mrs. Sunita Sharma',
+      mobileNo: '+91 98765 43210',
+      transport: 'Bus',
+    );
   }
 
   @override
@@ -126,18 +144,19 @@ class _StudentDossierScreenState extends State<StudentDossierScreen> with Single
       child: Column(
         children: [
           _buildProfileSection('Personal Information', [
-            _buildProfileRow('Full Name', 'Aarav Sharma'),
-            _buildProfileRow('Gender', 'Male'),
-            _buildProfileRow('Date of Birth', '12 Jan 2011'),
-            _buildProfileRow('Blood Group', 'B+'),
-            _buildProfileRow('Address', '123, Green Valley, New Delhi'),
+            _buildProfileRow('Full Name', student.studentName ?? '--'),
+            _buildProfileRow('Father Name', student.fatherName ?? '--'),
+            _buildProfileRow('Mother Name', student.motherName ?? '--'),
+            _buildProfileRow('Mobile No.', student.mobileNo ?? '--'),
+            _buildProfileRow('Address', 'Delhi, India'),
           ]),
           const SizedBox(height: 16),
           _buildProfileSection('Academic Information', [
-            _buildProfileRow('Current Grade', 'Grade 8 - A'),
-            _buildProfileRow('Roll Number', '23'),
-            _buildProfileRow('Admission ID', '2024/08/023'),
-            _buildProfileRow('House', 'Newton House (Red)'),
+            _buildProfileRow('Current Grade', student.className ?? '--'),
+            _buildProfileRow('Section', student.sectionName ?? '--'),
+            _buildProfileRow('Admission ID', student.studentId ?? '--'),
+            _buildProfileRow('House', 'Newton House'),
+            _buildProfileRow('Roll Number', '24'),
           ]),
           const SizedBox(height: 16),
           _buildProfileSection('Parent Information', [
@@ -180,35 +199,62 @@ class _StudentDossierScreenState extends State<StudentDossierScreen> with Single
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 40, 16, 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (!widget.isInsideParent)
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.darkTeal,
-              ),
-            )
-          else
-            const SizedBox(width: 48), // Spacer to maintain alignment if no back button
-          Text(
-            'My Dossier',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.darkTeal,
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
-          ),
-          const CircleAvatar(
-            radius: 20,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=admin'),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (!widget.isInsideParent)
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.primary.withOpacity(0.06),
+                  foregroundColor: AppColors.darkTeal,
+                ),
+              )
+            else
+              Builder(
+                builder: (innerContext) => IconButton(
+                  onPressed: () => Scaffold.of(innerContext).openDrawer(),
+                  icon: const Icon(Icons.menu_rounded, color: AppColors.darkTeal),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary.withOpacity(0.06),
+                    foregroundColor: AppColors.darkTeal,
+                  ),
+                ),
+              ),
+            Expanded(
+              child: Text(
+                'Student Dossier',
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.darkTeal,
+                ),
+              ),
+            ),
+            CircleAvatar(
+              radius: 20,
+              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${student.studentId}'),
+              backgroundColor: AppColors.primaryContainer,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -298,7 +344,7 @@ class _StudentDossierScreenState extends State<StudentDossierScreen> with Single
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Aarav Sharma',
+                  student.studentName ?? 'Student Name',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 20,
@@ -306,28 +352,43 @@ class _StudentDossierScreenState extends State<StudentDossierScreen> with Single
                   ),
                 ),
                 Text(
-                  'Grade 8 - A  •  Roll No. 23',
+                  'Grade ${student.className ?? '--'}  •  ${student.sectionName ?? '--'}',
                   style: GoogleFonts.inter(color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
                 Text(
-                  'Admission No.: 2024/08/023',
+                  'Admission No.: ${student.studentId ?? '--'}',
                   style: GoogleFonts.inter(color: Colors.white.withOpacity(0.6), fontSize: 11),
                 ),
                 Text(
-                  'Date of Admission: 10 Apr 2024',
+                  'Transport: ${student.transport ?? '--'}',
                   style: GoogleFonts.inter(color: Colors.white.withOpacity(0.6), fontSize: 11),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Active',
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Active',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'B+',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -365,20 +426,23 @@ class _StudentDossierScreenState extends State<StudentDossierScreen> with Single
             ),
           ),
           const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: const Size(0, 36),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              side: BorderSide(color: AppColors.outlineVariant),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today_outlined, size: 14),
-                const SizedBox(width: 6),
-                Text('View Timeline', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold)),
-              ],
+          Flexible(
+            child: OutlinedButton(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 32),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                side: BorderSide(color: AppColors.outlineVariant),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today_outlined, size: 12),
+                  const SizedBox(width: 4),
+                  Text('Timeline', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
           ),
         ],
@@ -391,9 +455,9 @@ class _StudentDossierScreenState extends State<StudentDossierScreen> with Single
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 4,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 0.65,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 0.62,
       children: [
         _buildMetricCard(Icons.school_outlined, 'Academic Remarks', '12', Colors.green, onTap: () {
           Navigator.pushNamed(context, '/academic-journey');

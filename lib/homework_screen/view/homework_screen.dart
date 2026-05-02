@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:school_app/homework_screen/model/homework_model.dart';
 import 'package:school_app/homework_screen/view_model/homework_view_model.dart';
 import 'package:school_app/utils/app_theme.dart';
+import 'package:school_app/utils/components/components.dart';
 import 'package:school_app/utils/utils.dart';
 
 class HomeWorkScreen extends StatelessWidget {
@@ -17,6 +18,7 @@ class HomeWorkScreen extends StatelessWidget {
         builder: (context, vm, _) {
           return Scaffold(
             backgroundColor: AppColors.surface,
+            drawer: const AppDrawer(),
             body: SafeArea(
               child: vm.isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -45,9 +47,11 @@ class HomeWorkScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
         child: Row(
           children: [
-            _IconButton(
-              icon: Icons.chevron_left_rounded,
-              onTap: () => Navigator.pop(context),
+            Builder(
+              builder: (ctx) => _IconButton(
+                icon: Icons.menu_rounded,
+                onTap: () => Scaffold.of(ctx).openDrawer(),
+              ),
             ),
             Expanded(
               child: Text(

@@ -32,8 +32,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
+  final TextEditingController _mobileCtrl = TextEditingController();
   final ValueNotifier<bool> _isLoading = ValueNotifier(false);
   bool _hidePassword = true;
+  bool _isOtpMode = false;
 
   @override
   Widget build(BuildContext context) {
@@ -44,33 +46,35 @@ class _LoginScreenState extends State<LoginScreen> {
         if (didPop) popScreen(context);
       },
       child: Scaffold(
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.white,
         resizeToAvoidBottomInset: true,
         body: ValueListenableBuilder<bool>(
           valueListenable: _isLoading,
           builder: (context, loading, _) {
             return Stack(
               children: [
-                // Background decorative circles
-                _BackgroundDecor(),
-                AbsorbPointer(
-                  absorbing: loading,
-                  child: SafeArea(child: _buildBody(context)),
-                ),
-                // Language Toggle on Login Screen
+                // Background Gradient
                 Positioned(
-                  top: 16,
-                  right: 16,
-                  child: SafeArea(
-                    child: IconButton.filledTonal(
-                      onPressed: () => showLanguageBottomSheet(context),
-                      icon: const Icon(Icons.translate_rounded, size: 20),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.15),
-                        foregroundColor: Colors.white,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: MediaQuery.of(context).size.height * 0.5,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.cyan.withOpacity(0.1),
+                          Colors.white,
+                        ],
                       ),
                     ),
                   ),
+                ),
+                AbsorbPointer(
+                  absorbing: loading,
+                  child: SafeArea(child: _buildBody(context)),
                 ),
                 if (loading) getScreenLoaderWidget(),
               ],
@@ -85,14 +89,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
+          // Admin Dev Login Button (keep this for dev)
           ElevatedButton(
             onPressed: () async {
-              // 1. Use the Singleton instance instead of context.read()
               bool success = await AuthViewModel.instance.loginAsDummyAdmin();
-
-              // 2. If successful, navigate to the Admin Dashboard
               if (success && context.mounted) {
-                Navigator.pushReplacementNamed(context, AdminNavigationScreen.routeName);
+                Navigator.pushReplacementNamed(
+                    context, AdminNavigationScreen.routeName);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -100,208 +103,408 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             child: const Text("DEV: Login as Admin"),
           ),
-          // ── Top section: logo + Vivekanand idol ─────────────────────────────
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.42,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Idol image (bottom)
-                Positioned(
-                  bottom: 0,
-                  child: Image.asset(
-                    ImageConstants.vivekanand,
-                    height: MediaQuery.of(context).size.height * 0.35,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                // Logo (top-centre)
-                Positioned(
-                  top: 32,
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        ImageConstants.logoImagePath,
-                        height: 70,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        context
-                            .read<LanguageProvider>()
-                            .translate('school_address'),
-                        textScaler: const TextScaler.linear(1.0),
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.white.withOpacity(0.55),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+
+          const SizedBox(height: 20),
+          // Top Logo
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              child: Image.asset(
+                ImageConstants.logoImagePath,
+                height: 50,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Welcome to",
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurface,
+            ),
+          ),
+          Text(
+            "Smart School",
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Learn. Grow. Succeed. Together.",
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.onSurfaceVariant,
             ),
           ),
 
-          // ── Glass form card ────────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(AppRadius.xl),
-              topRight: Radius.circular(AppRadius.xl),
+          // Illustration Placeholder
+          const SizedBox(height: 30),
+          Icon(
+            Icons.account_balance,
+            size: 100,
+            color: AppColors.primary.withOpacity(0.8),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Main Card
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-              child: Container(
-                width: double.infinity,
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height * 0.6,
-                ),
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                ),
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(AppRadius.xl),
-                    topRight: Radius.circular(AppRadius.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Let's Get Started 👋",
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 4),
+                Text(
+                  "Login to continue to your account",
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Tabs
+                Row(
                   children: [
-                    // Heading
-                    Text(
-                      context
-                          .read<LanguageProvider>()
-                          .translate('welcome_back'),
-                      textScaler: const TextScaler.linear(1.0),
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: -1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context
-                          .read<LanguageProvider>()
-                          .translate('login_subtitle'),
-                      textScaler: const TextScaler.linear(1.0),
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Username field
-                    AppTextfield(
-                      enabled: true,
-                      controller: _usernameCtrl,
-                      hintText: context
-                          .read<LanguageProvider>()
-                          .translate('username_hint'),
-                      showIcon: false,
-                      keyboardType: TextInputType.name,
-                      maxlines: 1,
-                    ),
-
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Password field
-                    AppTextfield(
-                      enabled: true,
-                      controller: _passwordCtrl,
-                      hintText: context
-                          .read<LanguageProvider>()
-                          .translate('password_hint'),
-                      showIcon: true,
-                      onIconTap: () =>
-                          setState(() => _hidePassword = !_hidePassword),
-                      obscureText: _hidePassword,
-                      icon: _hidePassword
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                    ),
-
-                    const SizedBox(height: AppSpacing.sm),
-
-                    // Forgot password
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          if (_usernameCtrl.text.isEmpty) {
-                            showSnackBarOnScreen(
-                                context,
-                                context
-                                    .read<LanguageProvider>()
-                                    .translate('enter_username'));
-                            return;
-                          }
-                          navigateToScreen(context,
-                              ForgotPasswordScreen(userId: _usernameCtrl.text));
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primaryContainer,
-                        ),
-                        child: Text(
-                          context
-                              .read<LanguageProvider>()
-                              .translate('forgot_password'),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryContainer,
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isOtpMode = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border(
+                                bottom: BorderSide(
+                                    color: !_isOtpMode
+                                        ? AppColors.primary
+                                        : Colors.grey.shade300,
+                                    width: !_isOtpMode ? 2 : 1)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.person,
+                                  color: !_isOtpMode
+                                      ? AppColors.primary
+                                      : Colors.grey.shade600,
+                                  size: 16),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    "Username & Password",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: !_isOtpMode
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: !_isOtpMode
+                                          ? AppColors.primary
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Login button
-                    AppButton(
-                      text: context
-                          .read<LanguageProvider>()
-                          .translate('login_button'),
-                      onPressed: (loadingNotifier) async {
-                        await _handleLogin(context, loadingNotifier);
-                      },
-                    ),
-
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Help row
-                    Center(
-                      child: TextButton(
-                        onPressed: () => showContactBottomSheet(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.onSurfaceVariant,
-                        ),
-                        child: Text(
-                          context
-                              .read<LanguageProvider>()
-                              .translate('login_issue'),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.onSurfaceVariant,
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isOtpMode = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border(
+                                bottom: BorderSide(
+                                    color: _isOtpMode
+                                        ? AppColors.primary
+                                        : Colors.grey.shade300,
+                                    width: _isOtpMode ? 2 : 1)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.phone_android,
+                                  color: _isOtpMode
+                                      ? AppColors.primary
+                                      : Colors.grey.shade600,
+                                  size: 16),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    "Login with OTP",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: _isOtpMode
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: _isOtpMode
+                                          ? AppColors.primary
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
+
+                const SizedBox(height: 24),
+
+                if (!_isOtpMode) ...[
+                  // Username field
+                  AppTextfield(
+                    enabled: true,
+                    controller: _usernameCtrl,
+                    hintText: "Enter your username",
+                    prefixIcon: Icons.person_outline,
+                    showIcon: false,
+                    keyboardType: TextInputType.name,
+                    maxlines: 1,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Password field
+                  AppTextfield(
+                    enabled: true,
+                    controller: _passwordCtrl,
+                    hintText: "Enter your password",
+                    prefixIcon: Icons.lock_outline,
+                    showIcon: true,
+                    onIconTap: () =>
+                        setState(() => _hidePassword = !_hidePassword),
+                    obscureText: _hidePassword,
+                    icon: _hidePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                ] else ...[
+                  // Mobile number field
+                  AppTextfield(
+                    enabled: true,
+                    controller: _mobileCtrl,
+                    hintText: "Enter your mobile number",
+                    prefixIcon: Icons.phone_android,
+                    showIcon: false,
+                    keyboardType: TextInputType.phone,
+                    maxlines: 1,
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                if (!_isOtpMode)
+                  // Remember me & Forgot password
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: Checkbox(
+                                value: true,
+                                onChanged: (val) {},
+                                activeColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  "Remember me",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    color: AppColors.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: TextButton(
+                            onPressed: () {
+                              if (_usernameCtrl.text.isEmpty) {
+                                showSnackBarOnScreen(context,
+                                    "Please enter your username first");
+                                return;
+                              }
+                              navigateToScreen(
+                                  context,
+                                  ForgotPasswordScreen(
+                                      userId: _usernameCtrl.text));
+                            },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              "Forgot Password?",
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 24),
+
+                // Login button
+                AppButton(
+                  text: _isOtpMode ? "Send OTP" : "Login",
+                  onPressed: (loadingNotifier) async {
+                    if (_isOtpMode) {
+                      if (_mobileCtrl.text.isEmpty) {
+                        showSnackBarOnScreen(
+                            context, "Please enter your mobile number");
+                        return;
+                      }
+                      // Implement OTP send logic here
+                      showSnackBarOnScreen(context,
+                          "OTP sent successfully to ${_mobileCtrl.text}!");
+                    } else {
+                      await _handleLogin(context, loadingNotifier);
+                    }
+                  },
+                ),
+
+                if (!_isOtpMode) ...[
+                  const SizedBox(height: 24),
+
+                  // or login with OTP
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.shade200)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          "or login with OTP",
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey.shade200)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Send OTP to Mobile
+                  GestureDetector(
+                    onTap: () => setState(() => _isOtpMode = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.phone_android,
+                              color: AppColors.primary.withOpacity(0.6),
+                              size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Send OTP to Mobile",
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right,
+                              color: AppColors.primary, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // Safe and secure
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.security,
+                        color: AppColors.primary, size: 16),
+                    const SizedBox(width: 8),
+                    RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppColors.onSurfaceVariant),
+                        children: const [
+                          TextSpan(text: "Your data is "),
+                          TextSpan(
+                              text: "safe and secure",
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary)),
+                          TextSpan(text: " with us."),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -382,40 +585,5 @@ class _LoginScreenState extends State<LoginScreen> {
       ));
       _isLoading.value = false;
     }
-  }
-}
-
-// Background decorative blobs on the navy screen
-class _BackgroundDecor extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned(
-          top: -60,
-          right: -60,
-          child: Container(
-            width: 220,
-            height: 220,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.04),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 80,
-          left: -40,
-          child: Container(
-            width: 140,
-            height: 140,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary.withOpacity(0.08),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }

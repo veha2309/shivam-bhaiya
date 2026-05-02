@@ -81,6 +81,7 @@ class _AppDrawerState extends State<AppDrawer> {
             _buildProfileHeader(),
             Expanded(child: _buildMenuList()),
             _buildSocialRow(),
+            _buildLogoutButton(context),
             const SizedBox(height: AppSpacing.lg),
           ],
         ),
@@ -136,7 +137,7 @@ class _AppDrawerState extends State<AppDrawer> {
           const SizedBox(height: 6),
 
           // Class pill
-          if ((homeModel?.className ?? '').isNotEmpty || user?.userType == 'Admin')
+          if ((homeModel?.className ?? '').isNotEmpty || user?.userType == 'Admin' || user?.userType == 'Teacher')
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
@@ -144,7 +145,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 borderRadius: AppRadius.fullRadius,
               ),
               child: Text(
-                user?.userType == 'Admin' ? 'ADMINISTRATOR' : (homeModel?.className ?? ''),
+                (user?.userType == 'Admin' || user?.userType == 'Teacher') ? (user?.userType == 'Admin' ? 'ADMINISTRATOR' : 'TEACHER') : (homeModel?.className ?? ''),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -196,6 +197,39 @@ class _AppDrawerState extends State<AppDrawer> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: InkWell(
+        onTap: () => AuthViewModel.instance.logout(context),
+        borderRadius: AppRadius.lgRadius,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.error.withOpacity(0.05),
+            border: Border.all(color: AppColors.error.withOpacity(0.1)),
+            borderRadius: AppRadius.lgRadius,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                context.read<LanguageProvider>().translate('logout'),
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppColors.error,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

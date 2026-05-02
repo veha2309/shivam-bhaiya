@@ -75,11 +75,7 @@ class LocalStorage {
       int index = userList.indexWhere((user) => user.isLogged);
 
       if (index == -1) {
-        if (userList.isEmpty) {
-          return null;
-        } else {
-          return userList.first;
-        }
+        return null;
       } else {
         return userList[index];
       }

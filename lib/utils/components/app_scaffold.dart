@@ -3,6 +3,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:loading_indicator/loading_indicator.dart';
+import 'package:school_app/admin_dashboard/view/components/admin_drawer.dart';
+import 'package:school_app/auth/view_model/auth.dart';
 import 'package:school_app/utils/app_theme.dart';
 import 'package:school_app/utils/components/components.dart';
 import 'package:school_app/utils/components/custom_bottom_nav.dart';
@@ -18,6 +20,7 @@ final class AppScaffold extends StatefulWidget {
   final int? currentNavIndex;
   final Function(int)? onNavTap;
   final Widget? appBarTitle;
+  final String? activeDrawerItem;
 
   const AppScaffold({
     super.key,
@@ -30,6 +33,7 @@ final class AppScaffold extends StatefulWidget {
     this.currentNavIndex,
     this.onNavTap,
     this.appBarTitle,
+    this.activeDrawerItem,
   });
 
   @override
@@ -54,17 +58,17 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) popScreen(context);
-      },
-      child: Scaffold(
+    return Scaffold(
         key: scaffoldKey,
         backgroundColor: AppColors.surface,
         extendBody: true,
         resizeToAvoidBottomInset: true,
-        drawer: widget.showDrawer ? const AppDrawer() : null,
+        drawer: widget.showDrawer
+            ? (AuthViewModel.instance.getLoggedInUser()?.userType == 'Admin' ||
+                    AuthViewModel.instance.getLoggedInUser()?.userType == 'Teacher'
+                ? AdminDrawer(activeItem: widget.activeDrawerItem)
+                : const AppDrawer())
+            : null,
         appBar: !widget.showAppBar
             ? null
             : getAppBar(
@@ -86,9 +90,7 @@ class _AppScaffoldState extends State<AppScaffold> {
             );
           },
         ),
-        bottomNavigationBar: null,
-      ),
-    );
+      );
   }
 }
 

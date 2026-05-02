@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:school_app/auth/model/user.dart';
-import 'package:school_app/auth/view/login_screen.dart';
 import 'package:school_app/auth/view_model/auth.dart';
+import 'package:school_app/auth/view/school_code_screen.dart';
 import 'package:school_app/main_navigation_screen.dart';
 import 'package:school_app/admin_dashboard/view/admin_navigation_screen.dart';
 import 'package:school_app/utils/constants.dart';
@@ -28,13 +28,13 @@ class _LandingScreenState extends State<LandingScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       if (user != null) {
-        if (user?.userType == 'Admin') {
+        if (user?.userType == 'Admin' || user?.userType == 'Teacher') {
           navigateToScreen(context, const AdminNavigationScreen(), replace: true);
         } else {
           navigateToScreen(context, const MainNavigationScreen(), replace: true);
         }
       } else {
-        navigateToScreen(context, const LoginScreen(shouldAllowPop: true),
+        navigateToScreen(context, const SchoolCodeScreen(),
             replace: true);
       }
     });

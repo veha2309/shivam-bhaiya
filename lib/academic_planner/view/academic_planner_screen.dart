@@ -58,6 +58,16 @@ class _AcademicPlannerScreenState extends State<AcademicPlannerScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Builder(
+            builder: (innerContext) => IconButton(
+              onPressed: () => Scaffold.of(innerContext).openDrawer(),
+              icon: const Icon(Icons.menu_rounded, color: AppColors.darkTeal),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.darkTeal,
+              ),
+            ),
+          ),
           Text(
             'Academic Planner',
             style: GoogleFonts.plusJakartaSans(

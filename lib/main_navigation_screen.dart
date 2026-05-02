@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:school_app/attendance_screen/view/student_attendance_screen.dart';
 import 'package:school_app/home_screen/view/home_screen.dart';
@@ -36,7 +37,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const HomeScreen(),
     const HomeWorkScreen(),
     const StudentAttendanceScreen(),
-    StudentProfileScreen(studentId: AuthViewModel.instance.getLoggedInUser()?.username ?? ""),
+    StudentProfileScreen(
+        studentId: AuthViewModel.instance.getLoggedInUser()?.username ?? ""),
   ];
 
   void _onItemTapped(int index) {
@@ -50,19 +52,53 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
+  DateTime? _currentBackPressTime;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        physics: const NeverScrollableScrollPhysics(), // Prevent manual swipe if desired, or allow it
-        children: _screens,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+
+        if (_selectedIndex != 0) {
+          _onItemTapped(0);
+          return;
+        }
+
+        final now = DateTime.now();
+        if (_currentBackPressTime == null ||
+            now.difference(_currentBackPressTime!) >
+                const Duration(seconds: 2)) {
+          _currentBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Press back again to exit",
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+              backgroundColor: AppColors.darkTeal,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() => _selectedIndex = index);
+          },
+          physics:
+              const NeverScrollableScrollPhysics(), // Prevent manual swipe if desired, or allow it
+          children: _screens,
+        ),
+        extendBody: true,
+        bottomNavigationBar: _buildBottomNavBar(),
       ),
-      extendBody: true,
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -111,7 +147,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.darkTeal : Colors.white.withOpacity(0.8),
+              color: isSelected
+                  ? AppColors.darkTeal
+                  : Colors.white.withOpacity(0.8),
               size: 24,
             ),
             if (isSelected) ...[
